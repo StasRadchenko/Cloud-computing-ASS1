@@ -9,25 +9,28 @@ import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.*;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 
 public class LocalApplication {
     public static void main (String [] args){
         File imagesURL= new File(args[0]);
         int numOfImagesPerWorker= Integer.parseInt(args[1]);
-        setupManager();
-        uploadFileToS3(imagesURL);
+        AWSCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(
+                new EnvironmentVariableCredentialsProvider().getCredentials());
+        setupManager(credentialsProvider);
+        uploadFileToS3(credentialsProvider,imagesURL);
         sendMsgToManager();
         checkForResponse();
         downloadResponse(); // maybe should be inside checkForResponse
         close();
     }
 
-    private static void setupManager() {
-        AWSCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(
-                new EnvironmentVariableCredentialsProvider().getCredentials());
+    private static void setupManager( AWSCredentialsProvider credentialsProvider) {
         AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard()
                 .withCredentials(credentialsProvider)
-                .withRegion("us-west-2")
+                .withRegion("us-east-1")
                 .build();
         if(!isManagerActive(ec2))
             defineManager(ec2);
@@ -51,7 +54,7 @@ public class LocalApplication {
     private static void defineManager(AmazonEC2 ec2) {
         try {
             RunInstancesRequest request = new RunInstancesRequest("ami-76f0061f", 1, 1);
-            request.setInstanceType(InstanceType.T2Micro.toString());
+            request.setInstanceType(InstanceType.T1Micro.toString());
             List<Instance> instances = ec2.runInstances(request).getReservation().getInstances();
             System.out.println("Launch instances: " + instances);
 
@@ -64,7 +67,16 @@ public class LocalApplication {
     }
 
 
-    private static void uploadFileToS3(File imagesURL) {
+    private static void uploadFileToS3(AWSCredentialsProvider credentialsProvider,File imagesURLFile) {
+        AmazonS3 s3 = AmazonS3ClientBuilder.standard()
+                .withCredentials(credentialsProvider)
+                .withRegion("us-east-1")
+                .build();
+        String bucketName ="talstas";
+        System.out.println("Local App is uploading the input file to S3...");
+        String key = imagesURLFile.getName().replace('\\', '_').replace('/','_').replace(':', '_');
+        PutObjectRequest req = new PutObjectRequest(bucketName, key, imagesURLFile);
+        s3.putObject(req);
     }
 
     private static void sendMsgToManager() {
