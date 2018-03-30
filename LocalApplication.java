@@ -15,15 +15,15 @@ public class LocalApplication {
     public static void main (String [] args){
         File imagesURL= new File(args[0]);
         int numOfImagesPerWorker= Integer.parseInt(args[1]);
-        connectToAWS();
+        setupManager();
         uploadFileToS3(imagesURL);
         sendMsgToSQS();
         checkForResponse();
-        downloadResponse();
-        closeManager();
+        downloadResponse(); // maybe should be inside checkForResponse
+        close();
     }
 
-    private static void connectToAWS() {
+    private static void setupManager() {
         AWSCredentialsProvider credentialsProvider = new AWSStaticCredentialsProvider(
                 new EnvironmentVariableCredentialsProvider().getCredentials());
         AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard()
@@ -31,13 +31,12 @@ public class LocalApplication {
                 .withRegion("us-west-2")
                 .build();
         if(!isManagerActive(ec2))
-            initManager();
-
+            defineManager();
     }
 
     private static boolean isManagerActive(AmazonEC2 ec2) {
-        DescribeInstancesResult disresult = ec2.describeInstances();
-        List<Reservation> reservationList = disresult.getReservations();
+        DescribeInstancesResult disResult = ec2.describeInstances();
+        List<Reservation> reservationList = disResult.getReservations();
         if (reservationList.size() > 0) {
             for (Reservation res : reservationList) {
                 List<Instance> instancesList = res.getInstances();
@@ -50,7 +49,7 @@ public class LocalApplication {
         return false;
     }
 
-    private static void initManager() {
+    private static void defineManager() {
 
     }
 
@@ -66,7 +65,7 @@ public class LocalApplication {
     private static void checkForResponse() {
     }
 
-    private static void closeManager() {
+    private static void close() {
     }
 
 }
