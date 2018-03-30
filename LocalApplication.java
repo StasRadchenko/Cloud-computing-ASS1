@@ -17,7 +17,7 @@ public class LocalApplication {
         int numOfImagesPerWorker= Integer.parseInt(args[1]);
         setupManager();
         uploadFileToS3(imagesURL);
-        sendMsgToSQS();
+        sendMsgToManager();
         checkForResponse();
         downloadResponse(); // maybe should be inside checkForResponse
         close();
@@ -56,7 +56,7 @@ public class LocalApplication {
     private static void uploadFileToS3(File imagesURL) {
     }
 
-    private static void sendMsgToSQS() {
+    private static void sendMsgToManager() {
     }
 
     private static void downloadResponse() {
