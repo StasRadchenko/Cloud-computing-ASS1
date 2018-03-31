@@ -28,17 +28,16 @@ public class LocalApplication {
     private static AmazonEC2 ec2;
     private static  AmazonSQS sqs;
     private static AWSCredentialsProvider credentialsProvider;
-    private static String bucketName ="talstas";
+    private static String bucketName="talstas";
     private static String key;
+    private static String ManagerToLocalQueue;
 
     public static void main (String [] args){
         File imagesURL= new File(args[0]);
         int numOfImagesPerWorker= Integer.parseInt(args[1]);
         setupManager();
         uploadFileToS3(imagesURL);
-        sendMsgToManager(); // need to send numOfImagesPerWorker
-        CreateQueueRequest createQueueRequest2 = new CreateQueueRequest("ManagerToLocal"+ UUID.randomUUID());
-        String ManagerToLocalQueue = sqs.createQueue(createQueueRequest2).getQueueUrl();
+        sendMsgToManager(numOfImagesPerWorker);
         while(!checkForResponse(ManagerToLocalQueue)){
             //wait a bit?
         }
@@ -92,20 +91,28 @@ public class LocalApplication {
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
                 .build();
+
         System.out.println("Local App is uploading the input file to S3...");
         key = imagesURLFile.getName().replace('\\', '_').replace('/','_').replace(':', '_');
         PutObjectRequest req = new PutObjectRequest(bucketName, key, imagesURLFile);
         s3.putObject(req);
     }
 
-    private static void sendMsgToManager() {
+    private static void sendMsgToManager(int numOfImagesPerWorker) {
         sqs= AmazonSQSClientBuilder.standard()
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
                 .build();
+
         CreateQueueRequest createQueueRequest = new CreateQueueRequest("LocalToManager"+ UUID.randomUUID());
         String LocalToManagerQueue = sqs.createQueue(createQueueRequest).getQueueUrl();
         sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"));
+        createManagerToLocalQueue();
+    }
+
+    private static void createManagerToLocalQueue() {
+        CreateQueueRequest createQueueRequest2 = new CreateQueueRequest("ManagerToLocal"+ UUID.randomUUID());
+        ManagerToLocalQueue = sqs.createQueue(createQueueRequest2).getQueueUrl();
     }
 
     private static boolean checkForResponse(String ManagerToLocalQueue) {
