@@ -38,7 +38,7 @@ public class LocalApplication {
         setupManager();
         uploadFileToS3(imagesURL);
         sendMsgToManager(numOfImagesPerWorker);
-        while(!checkForResponse(ManagerToLocalQueue)){
+        while(!gotResponse(ManagerToLocalQueue)){
             //wait a bit?
         }
         downloadResponse();
@@ -115,7 +115,7 @@ public class LocalApplication {
         ManagerToLocalQueue = sqs.createQueue(createQueueRequest2).getQueueUrl();
     }
 
-    private static boolean checkForResponse(String ManagerToLocalQueue) {
+    private static boolean gotResponse(String ManagerToLocalQueue) {
         ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(ManagerToLocalQueue);
         List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
         for (Message message : messages) {
