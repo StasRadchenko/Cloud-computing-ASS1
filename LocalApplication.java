@@ -1,8 +1,16 @@
 package com.company;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import javax.jms.*;
 
+import com.amazon.sqs.javamessaging.AmazonSQSMessagingClientWrapper;
+import com.amazon.sqs.javamessaging.ProviderConfiguration;
+import com.amazon.sqs.javamessaging.SQSConnection;
+import com.amazon.sqs.javamessaging.SQSConnectionFactory;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -15,7 +23,6 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
@@ -23,35 +30,47 @@ import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 
+import static java.lang.Thread.sleep;
+
 public class LocalApplication {
     private static AmazonS3 s3;
     private static AmazonEC2 ec2;
     private static  AmazonSQS sqs;
     private static AWSCredentialsProvider credentialsProvider;
+    private static SQSConnectionFactory connectionFactory;
+    private static List<Instance> instances;
     private static String bucketName="talstas";
     private static String key;
+    private static String ManagerToLocalQueueID;
+    private static String LocalToManagerQueueID;
     private static String ManagerToLocalQueue;
+    private static String LocalToManagerQueue;
 
     public static void main (String [] args){
         File imagesURL= new File(args[0]);
         int numOfImagesPerWorker= Integer.parseInt(args[1]);
-        setupManager();
+        setupProgram();
         uploadFileToS3(imagesURL);
         sendMsgToManager(numOfImagesPerWorker);
         while(!gotResponse(ManagerToLocalQueue)){
-            //wait a bit?
+            waitSomeTime();
         }
         downloadResponse();
         close();
     }
 
-    private static void setupManager( ) {
+    private static void setupProgram( ) {
         credentialsProvider = new AWSStaticCredentialsProvider(
                 new EnvironmentVariableCredentialsProvider().getCredentials());
          ec2 = AmazonEC2ClientBuilder.standard()
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
                 .build();
+         connectionFactory = new SQSConnectionFactory(
+                new ProviderConfiguration(),
+                AmazonSQSClientBuilder.standard()
+                        .withRegion("us-east-1")
+                        .withCredentials(credentialsProvider));
         if(!isManagerActive())
             defineManager();
     }
@@ -75,7 +94,7 @@ public class LocalApplication {
         try {
             RunInstancesRequest request = new RunInstancesRequest("ami-76f0061f", 1, 1);
             request.setInstanceType(InstanceType.T1Micro.toString());
-            List<Instance> instances = ec2.runInstances(request).getReservation().getInstances();
+            instances = ec2.runInstances(request).getReservation().getInstances();
             System.out.println("Launch instances: " + instances);
 
         } catch (AmazonServiceException ase) {
@@ -103,15 +122,16 @@ public class LocalApplication {
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
                 .build();
-
-        CreateQueueRequest createQueueRequest = new CreateQueueRequest("LocalToManager"+ UUID.randomUUID());
-        String LocalToManagerQueue = sqs.createQueue(createQueueRequest).getQueueUrl();
+        LocalToManagerQueueID="LocalToManager"+ UUID.randomUUID();
+        CreateQueueRequest createQueueRequest = new CreateQueueRequest(LocalToManagerQueueID);
+        LocalToManagerQueue = sqs.createQueue(createQueueRequest).getQueueUrl();
         sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"));
         createManagerToLocalQueue();
     }
 
     private static void createManagerToLocalQueue() {
-        CreateQueueRequest createQueueRequest2 = new CreateQueueRequest("ManagerToLocal"+ UUID.randomUUID());
+        ManagerToLocalQueueID="ManagerToLocal"+ UUID.randomUUID();
+        CreateQueueRequest createQueueRequest2 = new CreateQueueRequest(ManagerToLocalQueueID);
         ManagerToLocalQueue = sqs.createQueue(createQueueRequest2).getQueueUrl();
     }
 
@@ -125,17 +145,60 @@ public class LocalApplication {
         return false;
     }
 
-    private static void downloadResponse() {
-        S3Object object = s3.getObject(new GetObjectRequest(bucketName, key));
-        System.out.println("Content-Type: "  + object.getObjectMetadata().getContentType());
-        createOutput(object.getObjectContent());
-
+    private static void waitSomeTime() {
+        try {
+            System.out.print("wait loop..");
+            sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
-    private static void createOutput(S3ObjectInputStream objectContent) {
+    private static void downloadResponse() {
+        S3Object object = s3.getObject(new GetObjectRequest(bucketName, key));
+        System.out.println("Downloaded response, Content-Type is: "  + object.getObjectMetadata().getContentType());
+        InputStream objectData = object.getObjectContent();
+        createOutputFile(objectData);
+        try {
+            objectData.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void createOutputFile(InputStream objectContent) {
+    //inputStrem or S3ObjectInputSTream
     }
 
     private static void close() {
+        closeInstances();
+        deleteTheQueues();
+        ec2.shutdown();
+        s3.shutdown();
+        System.out.println("the local app is closed.");
+        System.exit(0);
+    }
+
+    private static void closeInstances() {
+        List<String> toCloseList = new ArrayList<>();
+        for (int i = 0; i < instances.size(); i++)
+            toCloseList.add(instances.get(i).getInstanceId());
+
+        TerminateInstancesRequest terminateRequest = new TerminateInstancesRequest(toCloseList);
+        ec2.terminateInstances(terminateRequest);
+    }
+
+    private static void deleteTheQueues() {
+        try {
+            SQSConnection connection = connectionFactory.createConnection();
+            AmazonSQSMessagingClientWrapper client = connection.getWrappedAmazonSQSClient();
+            client.getAmazonSQSClient().deleteQueue(LocalToManagerQueueID);
+            client.getAmazonSQSClient().deleteQueue(ManagerToLocalQueueID);
+            connection.close();
+
+        } catch (JMSException e) {
+            System.out.println("Queue delete error");
+        }
     }
 
 }
