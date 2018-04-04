@@ -39,12 +39,12 @@ public class LocalApplication {
     private static AWSCredentialsProvider credentialsProvider;
     private static SQSConnectionFactory connectionFactory;
     private static List<Instance> instances;
-    private static String bucketName="talstas";
-    private static String key;
     private static String ManagerToLocalQueueID;
     private static String LocalToManagerQueueID;
     private static String ManagerToLocalQueue;
     private static String LocalToManagerQueue;
+    private static String bucketName="talstas";
+    private static String key;
 
     public static void main (String [] args){
         File imagesURL= new File(args[0]);
@@ -175,7 +175,7 @@ public class LocalApplication {
         deleteTheQueues();
         ec2.shutdown();
         s3.shutdown();
-        System.out.println("the local app is closed.");
+        System.out.println("Local Application finished.");
         System.exit(0);
     }
 
