@@ -167,7 +167,8 @@ public class LocalApplication {
     }
 
     private static void createOutputFile(InputStream objectContent) {
-    //inputStrem or S3ObjectInputSTream
+    //inputStream or S3ObjectInputStream
+        //TODO: build html file containing the pics
     }
 
     private static void close() {
