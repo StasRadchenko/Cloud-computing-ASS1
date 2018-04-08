@@ -16,6 +16,7 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.*;
 import com.amazonaws.services.s3.AmazonS3;
@@ -23,6 +24,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
@@ -35,6 +37,7 @@ import static java.lang.Thread.sleep;
 public class LocalApplication {
     private static AmazonS3 s3;
     private static AmazonEC2 ec2;
+    private static AmazonEC2Client test;
     private static  AmazonSQS sqs;
     private static AWSCredentialsProvider credentialsProvider;
     private static SQSConnectionFactory connectionFactory;
@@ -52,10 +55,10 @@ public class LocalApplication {
         setupProgram();
         uploadFileToS3(imagesURL);
         sendMsgToManager(numOfImagesPerWorker);
-        //while(!gotResponse()){
-       //     waitSomeTime();
-      //  }
-       // downloadResponse();
+       // while(!gotResponse()){
+        //   waitSomeTime();
+        //}
+        //downloadResponse();
         close();
     }
 
@@ -71,6 +74,7 @@ public class LocalApplication {
                 AmazonSQSClientBuilder.standard()
                         .withRegion("us-east-1")
                         .withCredentials(credentialsProvider));
+
         if(!isManagerActive())
             defineManager();
     }
@@ -122,25 +126,29 @@ public class LocalApplication {
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
                 .build();
-        LocalToManagerQueueID="LocalToManager"+ UUID.randomUUID();
+        LocalToManagerQueueID="LocalToManager";
         CreateQueueRequest createQueueRequest = new CreateQueueRequest(LocalToManagerQueueID);
         LocalToManagerQueue = sqs.createQueue(createQueueRequest).getQueueUrl();
-        sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"));
-        createManagerToLocalQueue();
+        ManagerToLocalQueue=createManagerToLocalQueue();
+        sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"+"|"+numOfImagesPerWorker));
+
     }
 
-    private static void createManagerToLocalQueue() {
-        ManagerToLocalQueueID="ManagerToLocal"+ UUID.randomUUID();
+    private static String createManagerToLocalQueue() {
+        ManagerToLocalQueueID="ManagerToLocal";
         CreateQueueRequest createQueueRequest2 = new CreateQueueRequest(ManagerToLocalQueueID);
-        ManagerToLocalQueue = sqs.createQueue(createQueueRequest2).getQueueUrl();
+        ManagerToLocalQueue=sqs.createQueue(createQueueRequest2).getQueueUrl();
+        return ManagerToLocalQueue;
     }
 
     private static boolean gotResponse() {
-        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(ManagerToLocalQueue);
+        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest("ManagerToLocal");
         List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
         for (Message message : messages) {
-            if(message.getBody().equals("done task"))
+            if(message.getBody().equals("done task")) {
+             System.out.println("GOT RESPONSE!");
                 return true;
+            }
         }
         return false;
     }
@@ -157,7 +165,7 @@ public class LocalApplication {
     private static void downloadResponse() {
         S3Object object = s3.getObject(new GetObjectRequest(bucketName, key));
         System.out.println("Downloaded response, Content-Type is: "  + object.getObjectMetadata().getContentType());
-        InputStream objectData = object.getObjectContent();
+        S3ObjectInputStream objectData = object.getObjectContent();
         createOutputFile(objectData);
         try {
             objectData.close();
@@ -166,7 +174,7 @@ public class LocalApplication {
         }
     }
 
-    private static void createOutputFile(InputStream objectContent) {
+    private static void createOutputFile(S3ObjectInputStream objectContent) {
     //inputStream or S3ObjectInputStream
         //TODO: build html file containing the pics
     }
@@ -191,11 +199,22 @@ public class LocalApplication {
     }
 
     private static void deleteTheQueues() {
+        System.out.println("Listing all queues in your account.\n");
+        for (String queueUrl : sqs.listQueues().getQueueUrls()) {
+            System.out.println("  QueueUrl: " + queueUrl);
+        }
+        System.out.println();
+        gotResponse();
+
         try {
             SQSConnection connection = connectionFactory.createConnection();
             AmazonSQSMessagingClientWrapper client = connection.getWrappedAmazonSQSClient();
-            client.getAmazonSQSClient().deleteQueue(LocalToManagerQueueID);
-            client.getAmazonSQSClient().deleteQueue(ManagerToLocalQueueID);
+            if (client.queueExists("LocalToManager"))
+                client.getAmazonSQSClient().deleteQueue("LocalToManager");
+            if (client.queueExists("ManagerToLocal")) {
+                System.out.println("Manager to local queue is alive!");
+                client.getAmazonSQSClient().deleteQueue("ManagerToLocal");
+            }
             connection.close();
 
         } catch (JMSException e) {
