@@ -52,10 +52,10 @@ public class LocalApplication {
         setupProgram();
         uploadFileToS3(imagesURL);
         sendMsgToManager(numOfImagesPerWorker);
-        while(!gotResponse(ManagerToLocalQueue)){
-            waitSomeTime();
-        }
-        downloadResponse();
+        //while(!gotResponse(ManagerToLocalQueue)){
+       //     waitSomeTime();
+      //  }
+       // downloadResponse();
         close();
     }
 
@@ -182,11 +182,12 @@ public class LocalApplication {
 
     private static void closeInstances() {
         List<String> toCloseList = new ArrayList<>();
-        for (int i = 0; i < instances.size(); i++)
-            toCloseList.add(instances.get(i).getInstanceId());
-
-        TerminateInstancesRequest terminateRequest = new TerminateInstancesRequest(toCloseList);
-        ec2.terminateInstances(terminateRequest);
+        if(instances!=null) {
+            for (Instance i : instances)
+                toCloseList.add(i.getInstanceId());
+            TerminateInstancesRequest terminateRequest = new TerminateInstancesRequest(toCloseList);
+            ec2.terminateInstances(terminateRequest);
+        }
     }
 
     private static void deleteTheQueues() {
