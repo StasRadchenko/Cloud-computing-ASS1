@@ -25,13 +25,14 @@ public class Manager {
 
     public static void main (String [] args) {
         setup();
+        sendMessageToLocalApp();
         String imageList = downloadImageList();
         sendMessageForEachURL(imageList);
         startWorkers();
         receiveWorkersData();
         createSummaryFile();
         uploadFiletoS3();
-        sendMessageToLocalApp();
+
     }
 
     private static void setup() {
@@ -51,6 +52,7 @@ public class Manager {
         ManagerToLocalQueue = sqs.createQueue(createQueueRequest).getQueueUrl();
     */
     }
+
     private static String downloadImageList() {
     return "";}
 
@@ -70,10 +72,11 @@ public class Manager {
                 .withRegion("us-east-1")
                 .build();
         String ManagerToLocalQueueID="ManagerToLocal";
-        CreateQueueRequest createQueueRequest = new CreateQueueRequest(ManagerToLocalQueueID);
+       CreateQueueRequest createQueueRequest = new CreateQueueRequest(ManagerToLocalQueueID);
         String ManagerToLocalQueue=sqs.createQueue(createQueueRequest).getQueueUrl();
-        sqs.sendMessage(new SendMessageRequest("ManagerToLocal","done task"));
-
+        System.out.println("URL OF QUEUE IN MANAGER CLASS: " + ManagerToLocalQueue);
+        sqs.sendMessage(new SendMessageRequest(ManagerToLocalQueue,"done task"));
+        System.out.println("Messege was sent from manager into the queue");
     }
 
     private static boolean gotResponse() {

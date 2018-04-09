@@ -121,7 +121,7 @@ public class LocalApplication {
         s3.putObject(req);
     }
 
-    private static void sendMsgToManager(int numOfImagesPerWorker) {
+     private static void sendMsgToManager(int numOfImagesPerWorker) {
         sqs= AmazonSQSClientBuilder.standard()
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
@@ -138,18 +138,21 @@ public class LocalApplication {
         ManagerToLocalQueueID="ManagerToLocal";
         CreateQueueRequest createQueueRequest2 = new CreateQueueRequest(ManagerToLocalQueueID);
         ManagerToLocalQueue=sqs.createQueue(createQueueRequest2).getQueueUrl();
+        System.out.println("URL OF MANAGER TO LOCAL QUEUE: " +ManagerToLocalQueue);
         return ManagerToLocalQueue;
     }
 
     private static boolean gotResponse() {
-        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest("ManagerToLocal");
+        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(ManagerToLocalQueue);
         List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
         for (Message message : messages) {
+            System.out.println("not empty");
             if(message.getBody().equals("done task")) {
              System.out.println("GOT RESPONSE!");
                 return true;
             }
         }
+        System.out.println("NO RESPONSE");
         return false;
     }
 
@@ -205,12 +208,14 @@ public class LocalApplication {
         }
         System.out.println();
         gotResponse();
-
+/*
         try {
             SQSConnection connection = connectionFactory.createConnection();
             AmazonSQSMessagingClientWrapper client = connection.getWrappedAmazonSQSClient();
-            if (client.queueExists("LocalToManager"))
+            if (client.queueExists("LocalToManager")) {
+                System.out.println("LocalToManager queue is alive!");
                 client.getAmazonSQSClient().deleteQueue("LocalToManager");
+            }
             if (client.queueExists("ManagerToLocal")) {
                 System.out.println("Manager to local queue is alive!");
                 client.getAmazonSQSClient().deleteQueue("ManagerToLocal");
@@ -220,6 +225,7 @@ public class LocalApplication {
         } catch (JMSException e) {
             System.out.println("Queue delete error");
         }
+    */
     }
 
 }
