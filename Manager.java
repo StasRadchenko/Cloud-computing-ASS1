@@ -26,10 +26,10 @@ public class Manager {
 
     public static void main (String [] args) {
         setup();
-        gotResponse();
-        sendMessageToLocalApp();
+        gotTaskFromLocal(); //should be while
         String imageList = downloadImageList();
         sendMessageForEachURL(imageList);
+        sendMessageToLocalApp();
         startWorkers();
         receiveWorkersData();
         createSummaryFile();
@@ -59,6 +59,19 @@ public class Manager {
 
     }
 
+
+    private static boolean gotTaskFromLocal() {
+        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(LocalToManagerQueue);
+        List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
+        for (Message message : messages) {
+            System.out.println("GOT MSG FROM LOCAL TO MNG");
+            if(message.getBody().equals("new task"))
+                return true;
+        }
+        System.out.println("DIDNT GOT MSG FROM LOCAL TO MNG");
+        return false;
+    }
+
     private static String downloadImageList() {
     return "";}
 
@@ -82,22 +95,4 @@ public class Manager {
         sqs.sendMessage(new SendMessageRequest(ManagerToLocalQueue,"done task"));
         System.out.println("Messege was sent from manager into the queue");
     }
-
-    private static boolean gotResponse() {
-
-        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(LocalToManagerQueue);
-        List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
-        for (Message message : messages) {
-            System.out.println("GOT MSG FROM LOCAL TO MNG");
-            if(message.getBody().equals("new task"))
-                return true;
-        }
-        System.out.println("DIDNT GOT MSG FROM LOCAL TO MNG");
-        return false;
-    }
-
-
-
-
-
 }

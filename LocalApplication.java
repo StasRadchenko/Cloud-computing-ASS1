@@ -129,18 +129,17 @@ public class LocalApplication {
         LocalToManagerQueueID="LocalToManager";
         CreateQueueRequest createQueueRequest = new CreateQueueRequest(LocalToManagerQueueID);
         LocalToManagerQueue = sqs.createQueue(createQueueRequest).getQueueUrl();
-        ManagerToLocalQueue=createManagerToLocalQueue();
+        createManagerToLocalQueue();
 //        sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"+"|"+numOfImagesPerWorker));
          sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"));
 
     }
 
-    private static String createManagerToLocalQueue() {
+    private static void createManagerToLocalQueue() {
         ManagerToLocalQueueID="ManagerToLocal";
         CreateQueueRequest createQueueRequest2 = new CreateQueueRequest(ManagerToLocalQueueID);
         ManagerToLocalQueue=sqs.createQueue(createQueueRequest2).getQueueUrl();
         System.out.println("URL OF MANAGER TO LOCAL QUEUE: " +ManagerToLocalQueue);
-        return ManagerToLocalQueue;
     }
 
     private static boolean gotResponse() {
