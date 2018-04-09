@@ -130,7 +130,8 @@ public class LocalApplication {
         CreateQueueRequest createQueueRequest = new CreateQueueRequest(LocalToManagerQueueID);
         LocalToManagerQueue = sqs.createQueue(createQueueRequest).getQueueUrl();
         ManagerToLocalQueue=createManagerToLocalQueue();
-        sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"+"|"+numOfImagesPerWorker));
+//        sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"+"|"+numOfImagesPerWorker));
+         sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"));
 
     }
 
@@ -225,7 +226,7 @@ public class LocalApplication {
         } catch (JMSException e) {
             System.out.println("Queue delete error");
         }
-    */
+*/
     }
 
 }

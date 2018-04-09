@@ -22,9 +22,11 @@ public class Manager {
     private static AmazonSQS sqs;
     private static SQSConnectionFactory connectionFactory;
     private static String ManagerToLocalQueue;
+    private static String LocalToManagerQueue;
 
     public static void main (String [] args) {
         setup();
+        gotResponse();
         sendMessageToLocalApp();
         String imageList = downloadImageList();
         sendMessageForEachURL(imageList);
@@ -48,9 +50,13 @@ public class Manager {
                         .withRegion("us-east-1")
                         .withCredentials(credentialsProvider));
 
-        /*CreateQueueRequest createQueueRequest = new CreateQueueRequest("ManagerToLocal");
-        ManagerToLocalQueue = sqs.createQueue(createQueueRequest).getQueueUrl();
-    */
+        String LocalToManagerID="LocalToManager";
+        CreateQueueRequest createQueueRequest = new CreateQueueRequest(LocalToManagerID);
+         LocalToManagerQueue=sqs.createQueue(createQueueRequest).getQueueUrl();
+
+        CreateQueueRequest createQueueRequest2 = new CreateQueueRequest("ManagerToLocal");
+        ManagerToLocalQueue = sqs.createQueue(createQueueRequest2).getQueueUrl();
+
     }
 
     private static String downloadImageList() {
@@ -71,21 +77,22 @@ public class Manager {
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
                 .build();
-        String ManagerToLocalQueueID="ManagerToLocal";
-       CreateQueueRequest createQueueRequest = new CreateQueueRequest(ManagerToLocalQueueID);
-        String ManagerToLocalQueue=sqs.createQueue(createQueueRequest).getQueueUrl();
+
         System.out.println("URL OF QUEUE IN MANAGER CLASS: " + ManagerToLocalQueue);
         sqs.sendMessage(new SendMessageRequest(ManagerToLocalQueue,"done task"));
         System.out.println("Messege was sent from manager into the queue");
     }
 
     private static boolean gotResponse() {
-        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest("LocalToManager");
+
+        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(LocalToManagerQueue);
         List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
         for (Message message : messages) {
+            System.out.println("GOT MSG FROM LOCAL TO MNG");
             if(message.getBody().equals("new task"))
                 return true;
         }
+        System.out.println("DIDNT GOT MSG FROM LOCAL TO MNG");
         return false;
     }
 
