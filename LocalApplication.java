@@ -31,6 +31,7 @@ import com.amazonaws.services.sqs.model.CreateQueueRequest;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
+import org.apache.commons.codec.binary.Base64;
 
 import static java.lang.Thread.sleep;
 
@@ -41,6 +42,7 @@ public class LocalApplication {
     private static  AmazonSQS sqs;
     private static AWSCredentialsProvider credentialsProvider;
     private static SQSConnectionFactory connectionFactory;
+    public static IamInstanceProfileSpecification instanceP;
     private static List<Instance> instances;
     private static String ManagerToLocalQueueID;
     private static String LocalToManagerQueueID;
@@ -48,6 +50,7 @@ public class LocalApplication {
     private static String LocalToManagerQueue;
     private static String bucketName="talstas";
     private static String key;
+
 
     public static void main (String [] args){
         File imagesURL= new File(args[0]);
@@ -63,6 +66,10 @@ public class LocalApplication {
     }
 
     private static void setupProgram( ) {
+        instanceP=new IamInstanceProfileSpecification();
+        //waitSomeTime();
+        instanceP.setArn("arn:aws:iam::644923746621:instance-profile/ManagerRole");
+        waitSomeTime();
         credentialsProvider = new AWSStaticCredentialsProvider(
                 new EnvironmentVariableCredentialsProvider().getCredentials());
          ec2 = AmazonEC2ClientBuilder.standard()
@@ -95,9 +102,13 @@ public class LocalApplication {
     }
 
     private static void defineManager() {
+
+        //waitSomeTime();
         try {
             RunInstancesRequest request = new RunInstancesRequest("ami-76f0061f", 1, 1);
             request.setInstanceType(InstanceType.T1Micro.toString());
+            request.setUserData(createManagerScript());
+            request.setIamInstanceProfile(instanceP);
             instances = ec2.runInstances(request).getReservation().getInstances();
             System.out.println("Launch instances: " + instances);
 
@@ -107,6 +118,17 @@ public class LocalApplication {
             System.out.println("Error Code: " + ase.getErrorCode());
             System.out.println("Request ID: " + ase.getRequestId());
         }
+    }
+
+    private static String createManagerScript() {
+        StringBuilder managerBuild = new StringBuilder();
+        managerBuild.append("#!/bin/sh\n");
+        managerBuild.append("aws s3 cp s3://talstas/Manager.zip  Manager.zip  \n");
+        managerBuild.append("unzip Manager.zip\n");
+        managerBuild.append("java -jar manager.jar\n");
+
+        return new String(Base64.encodeBase64(managerBuild.toString().getBytes()));
+
     }
 
     private static void uploadFileToS3(File imagesURLFile) {
@@ -130,9 +152,8 @@ public class LocalApplication {
         CreateQueueRequest createQueueRequest = new CreateQueueRequest(LocalToManagerQueueID);
         LocalToManagerQueue = sqs.createQueue(createQueueRequest).getQueueUrl();
         createManagerToLocalQueue();
-//        sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"+"|"+numOfImagesPerWorker));
-         sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"));
-
+        sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"+"|"+numOfImagesPerWorker +"|" + key));
+        // sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"));
     }
 
     private static void createManagerToLocalQueue() {
@@ -159,7 +180,7 @@ public class LocalApplication {
     private static void waitSomeTime() {
         try {
             System.out.print("wait loop..");
-            sleep(2000);
+            sleep(5000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

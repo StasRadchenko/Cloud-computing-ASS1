@@ -1,12 +1,13 @@
 package com.company;
 
-import com.amazon.sqs.javamessaging.AmazonSQSMessagingClientWrapper;
 import com.amazon.sqs.javamessaging.ProviderConfiguration;
-import com.amazon.sqs.javamessaging.SQSConnection;
 import com.amazon.sqs.javamessaging.SQSConnectionFactory;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
+import com.amazonaws.services.s3.model.GetObjectRequest;
+import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
@@ -14,8 +15,9 @@ import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 
-import javax.jms.JMSException;
 import java.util.List;
+
+import static java.lang.Thread.sleep;
 
 public class Manager {
     private static AWSCredentialsProvider credentialsProvider;
@@ -23,10 +25,20 @@ public class Manager {
     private static SQSConnectionFactory connectionFactory;
     private static String ManagerToLocalQueue;
     private static String LocalToManagerQueue;
+    private static int numOfImagesPerWorker;
+    private static String key;
+    private static String bucketName= "talstas";
 
     public static void main (String [] args) {
         setup();
-        gotTaskFromLocal(); //should be while
+        while(!gotTaskFromLocal()){
+            try {
+                System.out.print("wait loop..");
+                sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
         String imageList = downloadImageList();
         sendMessageForEachURL(imageList);
         sendMessageToLocalApp();
@@ -65,14 +77,24 @@ public class Manager {
         List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
         for (Message message : messages) {
             System.out.println("GOT MSG FROM LOCAL TO MNG");
-            if(message.getBody().equals("new task"))
+            parseArgumentsFromLocal(message);
                 return true;
         }
         System.out.println("DIDNT GOT MSG FROM LOCAL TO MNG");
         return false;
     }
 
+    private static void parseArgumentsFromLocal(Message msg) {
+        String [] args= msg.toString().split("|");
+        numOfImagesPerWorker=Integer.parseInt(args[1]);
+        key=args[2];
+    }
+
     private static String downloadImageList() {
+       /* S3Object object = s3.getObject(new GetObjectRequest(bucketName, key));
+        System.out.println("Downloaded response, Content-Type is: "  + object.getObjectMetadata().getContentType());
+        S3ObjectInputStream objectData = object.getObjectContent();
+*/
     return "";}
 
     private static void sendMessageForEachURL(String imageList) {
