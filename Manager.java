@@ -30,6 +30,7 @@ public class Manager {
     private static String bucketName= "talstas";
 
     public static void main (String [] args) {
+        System.out.println("WELCOME to manager");
         setup();
         while(!gotTaskFromLocal()){
             try {

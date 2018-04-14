@@ -58,18 +58,16 @@ public class LocalApplication {
         setupProgram();
         uploadFileToS3(imagesURL);
         sendMsgToManager(numOfImagesPerWorker);
-       // while(!gotResponse()){
-        //   waitSomeTime();
-        //}
+       while(!gotResponse()){
+           waitSomeTime();
+        }
         //downloadResponse();
         close();
     }
 
     private static void setupProgram( ) {
         instanceP=new IamInstanceProfileSpecification();
-        //waitSomeTime();
         instanceP.setArn("arn:aws:iam::644923746621:instance-profile/ManagerRole");
-        waitSomeTime();
         credentialsProvider = new AWSStaticCredentialsProvider(
                 new EnvironmentVariableCredentialsProvider().getCredentials());
          ec2 = AmazonEC2ClientBuilder.standard()
@@ -103,11 +101,11 @@ public class LocalApplication {
 
     private static void defineManager() {
 
-        //waitSomeTime();
         try {
             RunInstancesRequest request = new RunInstancesRequest("ami-76f0061f", 1, 1);
             request.setInstanceType(InstanceType.T1Micro.toString());
             request.setUserData(createManagerScript());
+            request.withKeyName("Talbaum1");
             request.setIamInstanceProfile(instanceP);
             instances = ec2.runInstances(request).getReservation().getInstances();
             System.out.println("Launch instances: " + instances);
@@ -122,9 +120,18 @@ public class LocalApplication {
 
     private static String createManagerScript() {
         StringBuilder managerBuild = new StringBuilder();
-        managerBuild.append("#!/bin/sh\n");
-        managerBuild.append("aws s3 cp s3://talstas/Manager.zip  Manager.zip  \n");
-        managerBuild.append("unzip Manager.zip\n");
+        managerBuild.append("#!/bin/bash\n"); //start the bash
+        //download smthg for using aws commands
+        managerBuild.append("curl \"https://s3.amazonaws.com/aws-cli/awscli-bundle.zip\" -o \"awscli-bundle.zip\"\n");
+        managerBuild.append("unzip awscli-bundle.zip\n");
+        managerBuild.append("sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws \n");
+        //download zip from s3
+        managerBuild.append("aws s3 cp s3://talstas/manager.zip  manager.zip  \n");
+        managerBuild.append("unzip manager.zip\n");
+        //need to download java 8 cas the default  at ec2 is java 1.6 and it cant run it -this is whre im stuck
+        managerBuild.append("  wget --no-cookies --no-check-certificate --header \"Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie\" \"http://download.oracle.com/otn-pub/java/jdk/8u161-b12/2f38c3b165be4555a1fa6e98c45e0808/jdk-8u161-linux-arm32-vfp-hflt.tar.gz\"\n\n");
+        managerBuild.append(" rpm -ivh jdk-8u161-linux-arm32-vfp-hflt.tar.gz?AuthParam=1523722363_c1ba95cdc774e8c350e4e12186d00cfc\n  \n");
+        //after unziping and downloding java 1.8 run the jar file
         managerBuild.append("java -jar manager.jar\n");
 
         return new String(Base64.encodeBase64(managerBuild.toString().getBytes()));
@@ -229,7 +236,7 @@ public class LocalApplication {
         }
         System.out.println();
         gotResponse();
-/*
+
         try {
             SQSConnection connection = connectionFactory.createConnection();
             AmazonSQSMessagingClientWrapper client = connection.getWrappedAmazonSQSClient();
@@ -246,7 +253,7 @@ public class LocalApplication {
         } catch (JMSException e) {
             System.out.println("Queue delete error");
         }
-*/
+
     }
 
 }
