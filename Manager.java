@@ -4,6 +4,7 @@ import com.amazon.sqs.javamessaging.ProviderConfiguration;
 import com.amazon.sqs.javamessaging.SQSConnectionFactory;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
@@ -52,8 +53,16 @@ public class Manager {
 
     private static void setup() {
         System.out.println("WELCOME to setup");
-        credentialsProvider = new AWSStaticCredentialsProvider
-                (new InstanceProfileCredentialsProvider(false).getCredentials());
+
+        //EC2 PUTTY RUN:
+        /* credentialsProvider = new AWSStaticCredentialsProvider
+               (new InstanceProfileCredentialsProvider(false).getCredentials());
+*/
+
+        //Local run:
+        credentialsProvider = new AWSStaticCredentialsProvider(
+                new EnvironmentVariableCredentialsProvider().getCredentials());
+
         System.out.println("credentialsProvider ");
         sqs = AmazonSQSClientBuilder.standard()
                 .withCredentials(credentialsProvider)
@@ -91,6 +100,8 @@ public class Manager {
 
     private static void parseArgumentsFromLocal(Message msg) {
         String [] args= msg.toString().split("|");
+        for(int i=0;i<args.length;i++)
+            System.out.println(args[i]);
         numOfImagesPerWorker=Integer.parseInt(args[1].trim());
         key=args[2];
     }
