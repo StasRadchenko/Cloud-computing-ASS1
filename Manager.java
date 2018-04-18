@@ -99,11 +99,23 @@ public class Manager {
     }
 
     private static void parseArgumentsFromLocal(Message msg) {
-        String [] args= msg.toString().split("|");
-        for(int i=0;i<args.length;i++)
-            System.out.println(args[i]);
-        numOfImagesPerWorker=Integer.parseInt(args[1].trim());
-        key=args[2];
+        String [] allArgs= msg.toString().split(":");
+        String [] args= allArgs[4].split("|");
+        String parsedMsg="";
+        int delimCounter=0,i=0;
+        while(delimCounter<3){
+            if(args[i].equals("|")) {
+                delimCounter++;
+                parsedMsg+= " ";
+            }
+            else
+                parsedMsg+=args[i];
+            i++;
+        }
+        String [] parsedArgs= parsedMsg.split(" ");
+        System.out.println("THISSS " +parsedArgs[3]);
+       numOfImagesPerWorker=Integer.parseInt(parsedArgs[3]);
+        key=args[4];
     }
 
     private static String downloadImageList() {

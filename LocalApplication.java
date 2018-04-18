@@ -81,7 +81,7 @@ public class LocalApplication {
                         .withRegion("us-east-1")
                         .withCredentials(credentialsProvider));
 
-     //  if(!isManagerActive())
+      if(!isManagerActive())
             defineManager();
     }
 
@@ -159,7 +159,7 @@ public class LocalApplication {
         CreateQueueRequest createQueueRequest = new CreateQueueRequest(LocalToManagerQueueID);
         LocalToManagerQueue = sqs.createQueue(createQueueRequest).getQueueUrl();
         createManagerToLocalQueue();
-        sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"+"|"+numOfImagesPerWorker +"|" + key));
+        sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"+"|"+numOfImagesPerWorker +"|" + key+"|"));
         // sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"));
     }
 
