@@ -4,7 +4,7 @@ import com.amazon.sqs.javamessaging.ProviderConfiguration;
 import com.amazon.sqs.javamessaging.SQSConnectionFactory;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
+import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
@@ -51,17 +51,21 @@ public class Manager {
     }
 
     private static void setup() {
-        credentialsProvider = new AWSStaticCredentialsProvider(
-                new EnvironmentVariableCredentialsProvider().getCredentials());
+        System.out.println("WELCOME to setup");
+        credentialsProvider = new AWSStaticCredentialsProvider
+                (new InstanceProfileCredentialsProvider(false).getCredentials());
+        System.out.println("credentialsProvider ");
         sqs = AmazonSQSClientBuilder.standard()
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
                 .build();
+        System.out.println("SQS ");
         connectionFactory = new SQSConnectionFactory(
                 new ProviderConfiguration(),
                 AmazonSQSClientBuilder.standard()
                         .withRegion("us-east-1")
                         .withCredentials(credentialsProvider));
+        System.out.println("connectionFactory ");
 
         String LocalToManagerID="LocalToManager";
         CreateQueueRequest createQueueRequest = new CreateQueueRequest(LocalToManagerID);
@@ -69,7 +73,7 @@ public class Manager {
 
         CreateQueueRequest createQueueRequest2 = new CreateQueueRequest("ManagerToLocal");
         ManagerToLocalQueue = sqs.createQueue(createQueueRequest2).getQueueUrl();
-
+        System.out.println("queues ");
     }
 
 
@@ -87,7 +91,7 @@ public class Manager {
 
     private static void parseArgumentsFromLocal(Message msg) {
         String [] args= msg.toString().split("|");
-        numOfImagesPerWorker=Integer.parseInt(args[1]);
+        numOfImagesPerWorker=Integer.parseInt(args[1].trim());
         key=args[2];
     }
 

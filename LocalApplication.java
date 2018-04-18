@@ -61,6 +61,7 @@ public class LocalApplication {
        while(!gotResponse()){
            waitSomeTime();
         }
+        System.out.println("After loop");
         //downloadResponse();
         close();
     }
@@ -80,7 +81,7 @@ public class LocalApplication {
                         .withRegion("us-east-1")
                         .withCredentials(credentialsProvider));
 
-        if(!isManagerActive())
+     //  if(!isManagerActive())
             defineManager();
     }
 
@@ -102,9 +103,12 @@ public class LocalApplication {
     private static void defineManager() {
 
         try {
-            RunInstancesRequest request = new RunInstancesRequest("ami-76f0061f", 1, 1);
-            request.setInstanceType(InstanceType.T1Micro.toString());
+            //
+            //ami-76f0061f   - original
+            RunInstancesRequest request = new RunInstancesRequest("ami-1853ac65", 1, 1);
+            request.setInstanceType(InstanceType.T2Micro.toString());
             request.setUserData(createManagerScript());
+            request.withSecurityGroups("check");
             request.withKeyName("Talbaum1");
             request.setIamInstanceProfile(instanceP);
             instances = ec2.runInstances(request).getReservation().getInstances();
@@ -121,18 +125,14 @@ public class LocalApplication {
     private static String createManagerScript() {
         StringBuilder managerBuild = new StringBuilder();
         managerBuild.append("#!/bin/bash\n"); //start the bash
-        //download smthg for using aws commands
-        managerBuild.append("curl \"https://s3.amazonaws.com/aws-cli/awscli-bundle.zip\" -o \"awscli-bundle.zip\"\n");
-        managerBuild.append("unzip awscli-bundle.zip\n");
-        managerBuild.append("sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws \n");
-        //download zip from s3
+        managerBuild.append("sudo su \n");
+        managerBuild.append("yum install java-1.8.0 \n");
+        managerBuild.append(" y\n");
+        managerBuild.append("alternatives --config java \n ");
+        managerBuild.append("2\n");
         managerBuild.append("aws s3 cp s3://talstas/manager.zip  manager.zip  \n");
         managerBuild.append("unzip manager.zip\n");
-        //need to download java 8 cas the default  at ec2 is java 1.6 and it cant run it -this is whre im stuck
-        managerBuild.append("  wget --no-cookies --no-check-certificate --header \"Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie\" \"http://download.oracle.com/otn-pub/java/jdk/8u161-b12/2f38c3b165be4555a1fa6e98c45e0808/jdk-8u161-linux-arm32-vfp-hflt.tar.gz\"\n\n");
-        managerBuild.append(" rpm -ivh jdk-8u161-linux-arm32-vfp-hflt.tar.gz?AuthParam=1523722363_c1ba95cdc774e8c350e4e12186d00cfc\n  \n");
-        //after unziping and downloding java 1.8 run the jar file
-        managerBuild.append("java -jar manager.jar\n");
+        managerBuild.append("java -jar manager.jar\\n");
 
         return new String(Base64.encodeBase64(managerBuild.toString().getBytes()));
 
@@ -187,7 +187,7 @@ public class LocalApplication {
     private static void waitSomeTime() {
         try {
             System.out.print("wait loop..");
-            sleep(5000);
+            sleep(10000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
