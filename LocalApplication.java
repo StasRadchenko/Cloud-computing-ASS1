@@ -242,8 +242,6 @@ public class LocalApplication {
             System.out.println("  QueueUrl: " + queueUrl);
         }
         System.out.println();
-        gotResponse();
-
         try {
             SQSConnection connection = connectionFactory.createConnection();
             AmazonSQSMessagingClientWrapper client = connection.getWrappedAmazonSQSClient();
