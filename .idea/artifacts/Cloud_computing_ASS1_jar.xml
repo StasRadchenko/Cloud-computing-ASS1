@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="Cloud-computing-ASS1:jar">
+    <output-path>$PROJECT_DIR$/artifacts/Cloud_computing_ASS1_jar</output-path>
+    <root id="archive" name="Cloud-computing-ASS1.jar">
+      <element id="module-output" name="Cloud-computing-ASS1" />
+    </root>
+  </artifact>
+</component>
