@@ -1,11 +1,15 @@
 package com.company;
+import static java.lang.Thread.sleep;
+
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
-import javax.jms.*;
+
+import javax.jms.JMSException;
+
+import org.apache.commons.codec.binary.Base64;
+
 
 import com.amazon.sqs.javamessaging.AmazonSQSMessagingClientWrapper;
 import com.amazon.sqs.javamessaging.ProviderConfiguration;
@@ -18,7 +22,13 @@ import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
-import com.amazonaws.services.ec2.model.*;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.RunInstancesRequest;
+import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
@@ -31,9 +41,6 @@ import com.amazonaws.services.sqs.model.CreateQueueRequest;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
-import org.apache.commons.codec.binary.Base64;
-
-import static java.lang.Thread.sleep;
 
 public class LocalApplication {
     private static AmazonS3 s3;
@@ -56,7 +63,7 @@ public class LocalApplication {
         File imagesURL= new File(args[0]);
         int numOfImagesPerWorker= Integer.parseInt(args[1]);
         setupProgram();
-        uploadFileToS3(imagesURL);
+        uploadFileToS3(imagesURL); 
         sendMsgToManager(numOfImagesPerWorker);
        while(!gotResponse()){
            waitSomeTime();
