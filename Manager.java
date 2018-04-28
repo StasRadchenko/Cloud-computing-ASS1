@@ -21,13 +21,11 @@ import com.amazonaws.services.ec2.model.*;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
-import com.amazonaws.services.sqs.model.CreateQueueRequest;
-import com.amazonaws.services.sqs.model.Message;
-import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
-import com.amazonaws.services.sqs.model.SendMessageRequest;
+import com.amazonaws.services.sqs.model.*;
 import org.apache.commons.codec.binary.Base64;
 
 import javax.jms.JMSException;
@@ -48,36 +46,37 @@ public class Manager {
     private static String key;
     private static String bucketName= "talstas";
     private static int numberOfURLS = 0;
+    private static int numberOfResponses=0;
+    private static String filename;
+    private static LinkedList<String> allResponses;
 
     public static void main (String [] args) {
         System.out.println("WELCOME to manager");
         //Install manager func
         setup();
         //LIsten for local app to send a message
-        while(!gotTaskFromLocal()){
-            try {
-                System.out.print("wait loop..");
-                sleep(2000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+        while(!gotTaskFromLocal()) {
+            waitSomeTime();
         }
         //Got a message from local app
         //Download the list of the images
         downloadImageList();
+        //TO TEST:
         //Finished creating workers and sending messages to queue
-        List<Message> messages = waitForResponses();
+        List<Message> messages=null;
+        while(numberOfResponses<numberOfURLS){
+            waitForResponses();
+            waitSomeTime();
+            System.out.println("URLS: " + numberOfURLS + " Response: " + numberOfResponses);
+        }
         kilWorkers();
-        createSummaryFile(messages);
-        uploadFiletoS3();
+        createSummaryFile();
+        uploadFiletoS3(filename);
         sendMessageToLocalApp();
-        ec2.shutdown();
-        s3.shutdown();
-        System.out.println("Manager finished.");
-        System.exit(0);
+        closeManager();
     }
 
-	private static void setup() {
+    private static void setup() {
         System.out.println("WELCOME to setup");
    
         //EC2 PUTTY RUN:
@@ -98,25 +97,26 @@ public class Manager {
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
                 .build();
-        System.out.println("credentialsProvider ");
         sqs = AmazonSQSClientBuilder.standard()
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
                 .build();
-        System.out.println("SQS ");
         connectionFactory = new SQSConnectionFactory(
                 new ProviderConfiguration(),
                 AmazonSQSClientBuilder.standard()
                         .withRegion("us-east-1")
                         .withCredentials(credentialsProvider));
-        System.out.println("connectionFactory ");
         //----------Responses list setup
-        //allResponses = new LinkedList<String>();
+        allResponses = new LinkedList<String>();
         //----------End responses list setup
         String LocalToManagerID="LocalToManager";
         CreateQueueRequest createQueueRequest = new CreateQueueRequest(LocalToManagerID);
          LocalToManagerQueue=sqs.createQueue(createQueueRequest).getQueueUrl();
-        //CREATE QUEUE FOR MANAGER TO WORKERS 
+
+        CreateQueueRequest createQueueRequest2 = new CreateQueueRequest("ManagerToLocal");
+        ManagerToLocalQueue = sqs.createQueue(createQueueRequest2).getQueueUrl();
+
+         //CREATE QUEUE FOR MANAGER TO WORKERS
         //-------------MANAGER TO WORKER-------------------------
          String ManagerToWorkerID="ManagerToWorker";
          CreateQueueRequest manQwork = new CreateQueueRequest(ManagerToWorkerID);
@@ -129,10 +129,7 @@ public class Manager {
         //------------------------------------------------------- 
          
         //END QUEUE CREATION 
-         
-        CreateQueueRequest createQueueRequest2 = new CreateQueueRequest("ManagerToLocal");
-        ManagerToLocalQueue = sqs.createQueue(createQueueRequest2).getQueueUrl();
-        System.out.println("queues ");
+
         allInstances=new ArrayList<>();
     }
 
@@ -149,7 +146,6 @@ public class Manager {
     }
 
     private static void parseArgumentsFromLocal(Message msg) {
-    	
         String [] allArgs= msg.toString().split(":");
         String [] args= allArgs[4].split("|");
         String parsedMsg="";
@@ -165,7 +161,7 @@ public class Manager {
         }
         
         String [] parsedArgs= parsedMsg.split(" ");
-        System.out.println("THISSS " +parsedArgs[4]);
+        System.out.println("Input file name: " +parsedArgs[4]);
         numOfImagesPerWorker=Integer.parseInt(parsedArgs[3]);
         key=parsedArgs[4];
     }
@@ -184,21 +180,18 @@ public class Manager {
                     if (weightLoadWorker % numOfImagesPerWorker == 0) {
                         startWorkers();
                     }
-                    sqs.sendMessage(new SendMessageRequest(Manager2Worker, line));
+                    sqs.sendMessage(new SendMessageRequest(Manager2Worker,"new image task|"+ line));
                     weightLoadWorker++;
                     numberOfURLS++;
                 }
             }
-			System.out.println("END");
+			System.out.println("downloaded of image list was completed");
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
         
     }
 
-	private static void sendMessageForEachURL(String imageList) {
-    }
     private static void startWorkers() {
         try {
             IamInstanceProfileSpecification instanceP=new IamInstanceProfileSpecification();
@@ -244,57 +237,78 @@ public class Manager {
         closeInstances();
     }
 
-    private static void createSummaryFile(List <Message> messages) {
+    private static void createSummaryFile() {
+        if(allResponses==null)
+        {
+            System.out.println("No URL to create summary file");
+            return;
+        }
         try {
             String singleOCR;
+            filename="summary.txt";
             PrintWriter writer = new PrintWriter("summary.txt", "UTF-8");
-            for(Message m: messages){
-                singleOCR=parseMessage(m);
+            for(String response: allResponses){
+                singleOCR=parseMessage(response);
                 writer.println(singleOCR);
+                writer.println("-----------------------------------------------------------------");
             }
+            System.out.println("Summary flie was created!");
             writer.close();
 
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (UnsupportedEncodingException e) {
+        } catch (FileNotFoundException | UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-
     }
 
-    private static String parseMessage(Message m) {
-        return "";
+    private static String parseMessage(String response) {
+        //String body= m.getBody();
+        String text = response.substring(response.indexOf('|')+1);
+        System.out.println("Messge recivied from worker is: " + text);
+        return text;
     }
 
-    private static void uploadFiletoS3() {
+    private static void uploadFiletoS3(String filename) {
+        File summaryFile= new File(filename);
+        System.out.println("Manager is uploading the summary file to S3...");
+        key = summaryFile.getName().replace('\\', '_').replace('/','_').replace(':', '_');
+        PutObjectRequest req = new PutObjectRequest(bucketName, key, summaryFile);
+        s3.putObject(req);
     }
+
     private static void sendMessageToLocalApp() {
-        sqs= AmazonSQSClientBuilder.standard()
-                .withCredentials(credentialsProvider)
-                .withRegion("us-east-1")
-                .build();
-
         System.out.println("URL OF QUEUE IN MANAGER CLASS: " + ManagerToLocalQueue);
         sqs.sendMessage(new SendMessageRequest(ManagerToLocalQueue,"done task"));
         System.out.println("Messege was sent from manager into the queue");
     }
+
+    private static void closeManager() {
+        ec2.shutdown();
+        s3.shutdown();
+        System.out.println("Manager finished.");
+        System.exit(0);
+    }
     
     //-----------------------HELPER FUNCTIONS------------------------------------------------------
-    private static List<Message> waitForResponses() {
-       /* ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(Worker2Manager);
+    private static void waitForResponses() {
+        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(Worker2Manager);
         List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
-        for (int i=0; i<messages.size();i++) {
-            System.out.println("not empty");
-            if(messages.get(i).getBody().startsWith("done image task")) {
-             System.out.println("GOT RESPONSE!");
-             insertPicContentToList(message.getBody());
-             sqs.deleteMessage(Worker2Manager,)
-             numberOfResponses++;
-                
-            }
-        }
+       if(messages.size()>0) {
+           for (int i = 0; i < messages.size(); i++) {
+               System.out.println("not empty");
+               if (messages.get(i).getBody().startsWith("done image task")) {
+                   System.out.println("GOT RESPONSE!");
+                   allResponses.add(messages.get(i).getBody());
+                   String reciptHandleOfMsg = messages.get(i).getReceiptHandle();
+                   sqs.deleteMessage(new DeleteMessageRequest(Worker2Manager, reciptHandleOfMsg));
+                   numberOfResponses++; // maybe can cancel cas of worker2manager.isEmpty at the while in main
+               }
+           }
+       }
+       else
         System.out.println("NO RESPONSE");
-    */
+        //return messages;
+    }
+    /*
         ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(Worker2Manager);
         List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
         while (messages.size() < numberOfURLS) {
@@ -302,16 +316,17 @@ public class Manager {
             messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
         }
         return messages;
-    }
 
+    }
+*/
     private static void insertPicContentToList(String picContent) {
 
     }
 
     private static void waitSomeTime() {
         try {
-            System.out.print("wait loop..");
-            sleep(10000);
+            System.out.println("wait loop - trying to get all The Workers OCR Text..");
+            sleep(8000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -336,13 +351,13 @@ public class Manager {
         try {
             SQSConnection connection = connectionFactory.createConnection();
             AmazonSQSMessagingClientWrapper client = connection.getWrappedAmazonSQSClient();
-            if (client.queueExists("Manager2Worker")) {
-                System.out.println("Manager2Worker queue is alive!");
-                client.getAmazonSQSClient().deleteQueue("Manager2Worker");
+            if (client.queueExists("ManagerToWorker")) {
+                System.out.println("ManagerToWorker queue is getting closed!");
+                client.getAmazonSQSClient().deleteQueue("ManagerToWorker");
             }
-            if (client.queueExists("Worker2Manager")) {
-                System.out.println("Worker2Manager queue is alive!");
-                client.getAmazonSQSClient().deleteQueue("Worker2Manager");
+            if (client.queueExists("WorkerToManager")) {
+                System.out.println("WorkerToManager queue is getting closed!");
+                client.getAmazonSQSClient().deleteQueue("WorkerToManager");
             }
             connection.close();
 
