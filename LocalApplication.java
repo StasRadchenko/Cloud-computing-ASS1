@@ -69,16 +69,22 @@ public class LocalApplication {
            waitSomeTime();
         }
         System.out.println("After loop");
-        //downloadResponse();
+        downloadResponse();
         close();
     }
 
     private static void setupProgram( ) {
-        instanceP=new IamInstanceProfileSpecification();
-        instanceP.setArn("arn:aws:iam::644923746621:instance-profile/ManagerRole");
         credentialsProvider = new AWSStaticCredentialsProvider(
                 new EnvironmentVariableCredentialsProvider().getCredentials());
-         ec2 = AmazonEC2ClientBuilder.standard()
+        s3 = AmazonS3ClientBuilder.standard()
+                .withCredentials(credentialsProvider)
+                .withRegion("us-east-1")
+                .build();
+        ec2 = AmazonEC2ClientBuilder.standard()
+                .withCredentials(credentialsProvider)
+                .withRegion("us-east-1")
+                .build();
+        sqs = AmazonSQSClientBuilder.standard()
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
                 .build();
@@ -87,6 +93,8 @@ public class LocalApplication {
                 AmazonSQSClientBuilder.standard()
                         .withRegion("us-east-1")
                         .withCredentials(credentialsProvider));
+        instanceP=new IamInstanceProfileSpecification();
+        instanceP.setArn("arn:aws:iam::644923746621:instance-profile/ManagerRole");
 
       if(!isManagerActive())
             defineManager();
@@ -108,7 +116,6 @@ public class LocalApplication {
     }
 
     private static void defineManager() {
-
         try {
             //
             //ami-76f0061f   - original
@@ -146,11 +153,6 @@ public class LocalApplication {
     }
 
     private static void uploadFileToS3(File imagesURLFile) {
-         s3 = AmazonS3ClientBuilder.standard()
-                .withCredentials(credentialsProvider)
-                .withRegion("us-east-1")
-                .build();
-
         System.out.println("Local App is uploading the input file to S3...");
         key = imagesURLFile.getName().replace('\\', '_').replace('/','_').replace(':', '_');
         PutObjectRequest req = new PutObjectRequest(bucketName, key, imagesURLFile);
@@ -158,16 +160,11 @@ public class LocalApplication {
     }
 
      private static void sendMsgToManager(int numOfImagesPerWorker) {
-        sqs= AmazonSQSClientBuilder.standard()
-                .withCredentials(credentialsProvider)
-                .withRegion("us-east-1")
-                .build();
         LocalToManagerQueueID="LocalToManager";
         CreateQueueRequest createQueueRequest = new CreateQueueRequest(LocalToManagerQueueID);
         LocalToManagerQueue = sqs.createQueue(createQueueRequest).getQueueUrl();
         createManagerToLocalQueue();
-        sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"+"|"+numOfImagesPerWorker +"|" + key+"|"));
-        // sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"));
+        sqs.sendMessage(new SendMessageRequest(LocalToManagerQueue,"new task"+"|"+numOfImagesPerWorker +"|" + key +"|"));
     }
 
     private static void createManagerToLocalQueue() {
@@ -180,6 +177,7 @@ public class LocalApplication {
     private static boolean gotResponse() {
         ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(ManagerToLocalQueue);
         List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
+        waitSomeTime();
         for (Message message : messages) {
             System.out.println("not empty");
             if(message.getBody().equals("done task")) {
@@ -193,7 +191,7 @@ public class LocalApplication {
 
     private static void waitSomeTime() {
         try {
-            System.out.print("wait loop..");
+            System.out.println("wait loop - trying to get The Manager's Summary file");
             sleep(10000);
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -215,6 +213,7 @@ public class LocalApplication {
     private static void createOutputFile(S3ObjectInputStream objectContent) {
     //inputStream or S3ObjectInputStream
         //TODO: build html file containing the pics
+        System.out.println("OUTPUT FLIE SHOULD BE HERE");
     }
 
     private static void close() {
@@ -246,11 +245,11 @@ public class LocalApplication {
             SQSConnection connection = connectionFactory.createConnection();
             AmazonSQSMessagingClientWrapper client = connection.getWrappedAmazonSQSClient();
             if (client.queueExists("LocalToManager")) {
-                System.out.println("LocalToManager queue is alive!");
+                System.out.println("LocalToManager queue is getting closed!");
                 client.getAmazonSQSClient().deleteQueue("LocalToManager");
             }
             if (client.queueExists("ManagerToLocal")) {
-                System.out.println("Manager to local queue is alive!");
+                System.out.println("Manager to local queue is getting closed!");
                 client.getAmazonSQSClient().deleteQueue("ManagerToLocal");
             }
             connection.close();
