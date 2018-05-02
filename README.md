@@ -58,3 +58,7 @@ Worker:
 
 ## Q&A
 **Question:** Did you think for more than 2 minutes about security?
+**Answer:** We took security very seriously. We never hard coded the credentials in the program ,
+we are using the EnvironmentVariableCredentialsProvider to get the credentials in the localApp.
+To run the instances remotely , we use InstanceProfileCredentialsProvider and IAM roles (for manager and worker).
+In this way ,we never expose our credentials , because we never send them in text or in any kind of file.
