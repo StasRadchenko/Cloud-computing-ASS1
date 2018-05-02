@@ -63,3 +63,49 @@ Worker:
 we are using the EnvironmentVariableCredentialsProvider to get the credentials in the localApp.
 To run the instances remotely , we use InstanceProfileCredentialsProvider and IAM roles (for manager and worker).
 In this way ,we never expose our credentials , because we never send them in text or in any kind of file.
+
+**Question:** Did you think about scalability? Will your program work properly when 1 million clients connected at the same time? How about 2 million? 1 billion? Scalability is very important aspect of the system, is it scalable?
+**Answer:**  
+
+**Question:** What about persistence? What if a node dies? What if a node stalls for a while? Have you taken care of all possible outcomes in the system? Think of more possible issues that might arise from failures. What did you do to solve it? What about broken communications? Be sure to handle all fail-cases!
+**Answer:** 
+
+**Question:** Threads in your application, when is it a good idea? When is it bad?
+**Answer:** 
+There is no need to use thread in the workers, any worker gets only one message, so if we want the messages to being care of more fast we need to open more workers.
+Thread in the workers will give us nothing because all the action must occur in a certain order.
+It's also a bad idea to use threads in localapp, because it can cause us problems with the download of the input files due to cpu stealing time , and the running time won't improve , and maybe even will get worse.
+
+**Question:** Did you run more than one client at the same time? Be sure they work properly, and finish properly, and your results are correct.
+**Answer:**  
+
+**Question:** Do you understand how the system works? Do a full run using pen and paper, draw the different parts and the communication that happens between them.
+**Answer:**  
+
+**Question:** Did you manage the termination process? Be sure all is closed once requested!
+**Answer:**  
+
+**Question:** Did you take in mind the system limitations that we are using? Be sure to use it to its fullest!
+**Answer:**  yes. Moreover if more than 1 app will try to create the manager, it will not succeed,
+it will get a message that say :" Manager is already Defined".
+**need to add?**
+
+**Question:** Are all your workers working hard? Or some are slacking? Why?
+**Answer:**  No. not all the workers work the same, some of them works on a big amount of messages and some of them works on less.
+We think it's because the workers are not created at the same time.
+
+**Question:** Is your manager doing more work than he's supposed to? Have you made sure each part of your system has properly defined tasks? Did you mix their tasks? Don't!
+**Answer:** The Manager tasks are defined above, it doing exactly what it suppose to do.
+He is not supposed to worry about How the OCR is done or what the text is-that's the workers task.
+He just compose a summary file and upload it to s3.
+
+**Question:** are you sure you understand what distributed means? Is there anything in your system awaiting another?
+**Answer:** A distributed system: (by WIKIPEDIA: "is a model in which components located on networked computers communicate and coordinate their actions by passing messages")
+as we can see in our program The local application create a instance that running on other computer and communicate with it with messages.
+The manager is a computer that belongs to a computer network on amazon.
+The manager uploads more computers from amazon network- the workers, each worker works on a different computer and they communicate only with the manager with messages.
+All the computers work together on the same mission, so the mission distributed between all of them.
+The local-app is waiting to the manager to create all its output files.
+The manager is waiting to the workers to create all the review response for the files that he sent.
+All the computers are independent.
+
