@@ -37,16 +37,24 @@ new task + numOfImagesPerWorker + key (which num of images per worker and key ar
  
  Manager:
 * open 2 queues Manager2Worker queue and Worker2Manager queue.
-1.The manager is "listening" to the "localToManager" queue in busy-wait form. and will wait for new message.
-2. when the manager gets a new message he will:
+* The manager is "listening" to the "localToManager" queue in busy-wait form. and will wait for new message.
+* when the manager gets a new message he will:
    - download the file from s3
    - parse the arguments from the message -key and num of images per worker.
    - creates a new smaller messages(for each URL in the file) to send to the Manager2Worker queue.
    - after each "numOfImagesPerWorker" he will intiaite and create a worker instance.
    - will count how many messages were sent to the working while using the variable numOfURLs
-3. the manager will listen to "Worker2Manager" queue, and for each response he will save the response at allrespones list.
-4. after getting enough responses the manage will create the summary file from all the responses.
-5. the manager will shut down and closes all the workers instances.
-5. The manager will upload the file to s3, and send a message "done task" to local app using ManagerToLocal queue.
+* the manager will listen to "Worker2Manager" queue, and for each response he will save the response at allrespones list.
+* after getting enough responses the manage will create the summary file from all the responses.
+* the manager will shut down and closes all the workers instances.
+* The manager will upload the file to s3, and send a message "done task" to local app using ManagerToLocal queue.
 
+Worker:
+* Opened by the manager.
+* The worker parse the url from the Message they got from the Manager at Manager2Worker queue.
+* The worker download the image spesificed in the URL and apply OCR actions on it.
+* The worker send the text he got to The Manager through Worker2Manager queue.
+* The worker delete the message from the queue.
 
+## Q&A
+**Question:** Did you think for more than 2 minutes about security?
