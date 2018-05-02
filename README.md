@@ -93,13 +93,14 @@ It's also a bad idea to use threads in localapp, because it can cause us problem
 **Question:** Did you manage the termination process? Be sure all is closed once requested!
 
 **Answer:** 
-
+Once certain Local application recieves an task done from the manager, it proceedes to download the summary file that the manager built.
+After the download sequence the Local application builts the HTML output file according to the summary file, at the end the local application terminates the s3 conection. As for the manager after finishing one task from certain local application it proceedes on shuting down the instances of the workers that he created. after the sequnce finished the manager proceedes to "listen" for another tasks from another/same local application.
 
 **Question:** Did you take in mind the system limitations that we are using? Be sure to use it to its fullest!
 
 **Answer:**
 yes. Moreover if more than 1 app will try to create the manager, it will not succeed,
-it will get a message that say :" Manager is already Defined".
+it will get a message that say :" Manager is already Defined", and we will proceed to send an task to already existing manager, The manager will take care one task at time, meaning that after the manager took care of one task from local application it will proceed to take care of another.
 **need to add?**
 
 **Question:** Are all your workers working hard? Or some are slacking? Why?
