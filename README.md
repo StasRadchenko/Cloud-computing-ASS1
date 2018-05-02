@@ -57,7 +57,7 @@ Worker:
 * The worker delete the message from the queue.
 
 ## Q&A
-**Question:** Did you think for more than 2 minutes about security?
+**Question:** Did you think for more than 2 minutes about security? 
 **Answer:** We took security very seriously. We never hard coded the credentials in the program ,
 we are using the EnvironmentVariableCredentialsProvider to get the credentials in the localApp.
 To run the instances remotely , we use InstanceProfileCredentialsProvider and IAM roles (for manager and worker).
