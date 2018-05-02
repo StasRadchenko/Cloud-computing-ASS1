@@ -36,7 +36,7 @@ new task + numOfImagesPerWorker + key (which num of images per worker and key ar
  * When the local app gets this message, it downloads the output files from s3, and create an html file presenting the pics and their ocr text.
  
  Manager:
-*open 2 queues Manager2Worker queue and Worker2Manager queue.
+* open 2 queues Manager2Worker queue and Worker2Manager queue.
 1.The manager is "listening" to the "localToManager" queue in busy-wait form. and will wait for new message.
 2. when the manager gets a new message he will:
    - download the file from s3
