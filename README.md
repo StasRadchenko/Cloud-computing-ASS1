@@ -49,3 +49,4 @@ new task + numOfImagesPerWorker + key (which num of images per worker and key ar
 5. the manager will shut down and closes all the workers instances.
 5. The manager will upload the file to s3, and send a message "done task" to local app using ManagerToLocal queue.
 
+
