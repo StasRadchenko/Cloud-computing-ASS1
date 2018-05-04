@@ -63,13 +63,13 @@ public class LocalApplication {
         File imagesURL= new File(args[0]);
         int numOfImagesPerWorker= Integer.parseInt(args[1]);
         setupProgram();
-        uploadFileToS3(imagesURL); 
+        uploadFileToS3(imagesURL);
         sendMsgToManager(numOfImagesPerWorker);
         //FOR DEBUGGING ONLY,DELETE AFTER
         downloadResponse();
         //
         while(!gotResponse()){
-           waitSomeTime();
+            waitSomeTime();
         }
         System.out.println("After loop");
         downloadResponse();
@@ -91,7 +91,7 @@ public class LocalApplication {
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
                 .build();
-         connectionFactory = new SQSConnectionFactory(
+        connectionFactory = new SQSConnectionFactory(
                 new ProviderConfiguration(),
                 AmazonSQSClientBuilder.standard()
                         .withRegion("us-east-1")
@@ -99,7 +99,7 @@ public class LocalApplication {
         instanceP=new IamInstanceProfileSpecification();
         instanceP.setArn("arn:aws:iam::644923746621:instance-profile/ManagerRole");
 
-      if(!isManagerActive())
+        if(!isManagerActive())
             defineManager();
     }
 
@@ -112,7 +112,7 @@ public class LocalApplication {
                 for (Instance instance : instancesList) {
                     if (instance.getState().getName().equals("running"))
                         System.out.println("Manager is already Defined");
-                        return true;
+                    return true;
                 }
             }
         }
@@ -143,14 +143,14 @@ public class LocalApplication {
     private static String createManagerScript() {
         StringBuilder managerBuild = new StringBuilder();
         managerBuild.append("#!/bin/bash\n"); //start the bash
-        managerBuild.append("sudo su \n");
-        managerBuild.append("yum install java-1.8.0 \n");
-        managerBuild.append(" y\n");
-        managerBuild.append("alternatives --config java \n ");
+        managerBuild.append("sudo su\n");
+        managerBuild.append("yum install java-1.8.0\n");
+        managerBuild.append("y\n");
+        managerBuild.append("alternatives --config java\n");
         managerBuild.append("2\n");
-        managerBuild.append("aws s3 cp s3://talstas/manager.zip  manager.zip  \n");
+        managerBuild.append("aws s3 cp s3://talstas/manager.zip  manager.zip\n");
         managerBuild.append("unzip manager.zip\n");
-        managerBuild.append("java -jar manager.jar\n");
+        managerBuild.append("java -jar manager.jar");
 
         return new String(Base64.encodeBase64(managerBuild.toString().getBytes()));
 
@@ -163,7 +163,7 @@ public class LocalApplication {
         s3.putObject(req);
     }
 
-     private static void sendMsgToManager(int numOfImagesPerWorker) {
+    private static void sendMsgToManager(int numOfImagesPerWorker) {
         LocalToManagerQueueID="LocalToManager";
         CreateQueueRequest createQueueRequest = new CreateQueueRequest(LocalToManagerQueueID);
         LocalToManagerQueue = sqs.createQueue(createQueueRequest).getQueueUrl();
@@ -185,7 +185,7 @@ public class LocalApplication {
         for (Message message : messages) {
             System.out.println("not empty");
             if(message.getBody().equals("done task")) {
-             System.out.println("GOT RESPONSE!");
+                System.out.println("GOT RESPONSE!");
                 return true;
             }
         }
@@ -203,7 +203,7 @@ public class LocalApplication {
     }
 
     private static void downloadResponse() {
-       com.amazonaws.services.s3.model.S3Object s3obj = s3.getObject(new GetObjectRequest(bucketName, "summary."+key));
+        com.amazonaws.services.s3.model.S3Object s3obj = s3.getObject(new GetObjectRequest(bucketName, "summary."+key));
         System.out.println("Downloaded response, Content-Type is: "  + s3obj.getObjectMetadata().getContentType());
         S3ObjectInputStream objectData = s3obj.getObjectContent();
         BufferedReader reader = new BufferedReader(new InputStreamReader(s3obj.getObjectContent()));
@@ -217,7 +217,7 @@ public class LocalApplication {
     }
 
     private static void createOutputFile(BufferedReader reader) {
-    //inputStream or S3ObjectInputStream
+        //inputStream or S3ObjectInputStream
         //TODO: build html file containing the pics and their text
         System.out.println("OUTPUT FLIE SHOULD BE CREATED HERE");
         try {
@@ -225,15 +225,7 @@ public class LocalApplication {
             PrintWriter writer = new PrintWriter("output.html", "UTF-8");
             writer.write("<!DOCTYPE html>\n" +
                     "<html>\n"+
-            "<body>\n");
-            /*String line= reader.readLine();
-            int i=0;
-            while (i<100) {
-                if(line!=null)
-                writer.write(line+"\n");
-                line= reader.readLine();
-                i++;
-            }*/
+                    "<body>\n");
             String line;
             while ((line = reader.readLine()) != null) {
                 System.out.println("TEXT LINE: " + line);
@@ -252,7 +244,7 @@ public class LocalApplication {
             writer.write("</body>\n" +
                     "</html>");
             writer.close();
-                System.out.println("Creation of HTML file was completed");
+            System.out.println("Creation of HTML file was completed");
         } catch (IOException e) {
             e.printStackTrace();
         }
