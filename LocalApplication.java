@@ -65,7 +65,10 @@ public class LocalApplication {
         setupProgram();
         uploadFileToS3(imagesURL); 
         sendMsgToManager(numOfImagesPerWorker);
-       while(!gotResponse()){
+        //FOR DEBUGGING ONLY,DELETE AFTER
+        downloadResponse();
+        //
+        while(!gotResponse()){
            waitSomeTime();
         }
         System.out.println("After loop");
@@ -147,7 +150,7 @@ public class LocalApplication {
         managerBuild.append("2\n");
         managerBuild.append("aws s3 cp s3://talstas/manager.zip  manager.zip  \n");
         managerBuild.append("unzip manager.zip\n");
-        managerBuild.append("java -jar manager.jar\\n");
+        managerBuild.append("java -jar manager.jar\n");
 
         return new String(Base64.encodeBase64(managerBuild.toString().getBytes()));
 
@@ -200,7 +203,7 @@ public class LocalApplication {
     }
 
     private static void downloadResponse() {
-       com.amazonaws.services.s3.model.S3Object s3obj = s3.getObject(new GetObjectRequest(bucketName, key));
+       com.amazonaws.services.s3.model.S3Object s3obj = s3.getObject(new GetObjectRequest(bucketName, "summary."+key));
         System.out.println("Downloaded response, Content-Type is: "  + s3obj.getObjectMetadata().getContentType());
         S3ObjectInputStream objectData = s3obj.getObjectContent();
         BufferedReader reader = new BufferedReader(new InputStreamReader(s3obj.getObjectContent()));
@@ -235,10 +238,10 @@ public class LocalApplication {
             while ((line = reader.readLine()) != null) {
                 System.out.println("TEXT LINE: " + line);
                 if (isURL) {
-                    writer.write("<img src=\"" + line + "\"> alt=\"" + line + "\">\n");
+                    writer.write("<p><img src="+line+ "><br>");
                     isURL = false;
                 } else if (line.equals("-----------------------------------------------------------------")) {
-                    writer.write("\n");
+                    writer.write("\n<p>");
                     isURL = true;
                 } else { //should be text from image lines
                     System.out.println("ELSE LINE" + line);
