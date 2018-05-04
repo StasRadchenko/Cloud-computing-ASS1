@@ -226,14 +226,14 @@ public class Manager  {
     private static String createWorkerScript() {
         StringBuilder managerBuild = new StringBuilder();
         managerBuild.append("#!/bin/bash\n"); //start the bash
-        managerBuild.append("sudo su \n");
-        managerBuild.append("yum install java-1.8.0 \n");
-        managerBuild.append(" y\n");
-        managerBuild.append("alternatives --config java \n ");
+        managerBuild.append("sudo su\n");
+        managerBuild.append("yum install java-1.8.0\n");
+        managerBuild.append("y\n");
+        managerBuild.append("alternatives --config java\n");
         managerBuild.append("2\n");
-        managerBuild.append("aws s3 cp s3://talstas/worker.zip  worker.zip  \n");
+        managerBuild.append("aws s3 cp s3://talstas/worker.zip  worker.zip\n");
         managerBuild.append("unzip worker.zip\n");
-        managerBuild.append("java -jar worker.jar\\n");
+        managerBuild.append("java -jar worker.jar");
 
         return new String(Base64.encodeBase64(managerBuild.toString().getBytes()));
     }
