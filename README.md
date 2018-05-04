@@ -65,6 +65,7 @@ To run the instances remotely , we use InstanceProfileCredentialsProvider and IA
 In this way ,we never expose our credentials , because we never send them in text or in any kind of file.
 
 **Question:** Did you think about scalability? Will your program work properly when 1 million clients connected at the same time? How about 2 million? 1 billion? Scalability is very important aspect of the system, is it scalable?
+
 **Answer:**  
 
 **Question:** What about persistence? What if a node dies? What if a node stalls for a while? Have you taken care of all possible outcomes in the system? Think of more possible issues that might arise from failures. What did you do to solve it? What about broken communications? Be sure to handle all fail-cases!
@@ -92,21 +93,18 @@ It's also a bad idea to use threads in localapp, because it can cause us problem
 
 **Question:** Did you manage the termination process? Be sure all is closed once requested!
 
-**Answer:** 
-Once certain Local application recieves an task done from the manager, it proceedes to download the summary file that the manager built.
+**Answer:** Once certain Local application recieves an task done from the manager, it proceedes to download the summary file that the manager built.
 After the download sequence the Local application builts the HTML output file according to the summary file, at the end the local application terminates the s3 conection. As for the manager after finishing one task from certain local application it proceedes on shuting down the instances of the workers that he created. after the sequnce finished the manager proceedes to "listen" for another tasks from another/same local application.
 
 **Question:** Did you take in mind the system limitations that we are using? Be sure to use it to its fullest!
 
-**Answer:**
-yes. Moreover if more than 1 app will try to create the manager, it will not succeed,
+**Answer:** yes. Moreover if more than 1 app will try to create the manager, it will not succeed,
 it will get a message that say :" Manager is already Defined", and we will proceed to send an task to already existing manager, The manager will take care one task at time, meaning that after the manager took care of one task from local application it will proceed to take care of another.
-**need to add?**
+
 
 **Question:** Are all your workers working hard? Or some are slacking? Why?
 
-**Answer:**
-No. not all the workers work the same, some of them works on a big amount of messages and some of them works on less.
+**Answer:** No. not all the workers work the same, some of them works on a big amount of messages and some of them works on less.
 We think it's because the workers are not created at the same time.
 
 **Question:** Is your manager doing more work than he's supposed to? Have you made sure each part of your system has properly defined tasks? Did you mix their tasks? Don't!
