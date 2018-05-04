@@ -88,7 +88,7 @@ It's also a bad idea to use threads in localapp, because it can cause us problem
 **Question:** Do you understand how the system works? Do a full run using pen and paper, draw the different parts and the communication that happens between them.
 
 **Answer:**
-
+![alt text](Cloud-computing-ASS1/042849ef-5caa-4ae7-88f1-d0b7cad2b414.jpg)
 
 **Question:** Did you manage the termination process? Be sure all is closed once requested!
 
