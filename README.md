@@ -75,9 +75,7 @@ In this way ,we never expose our credentials , because we never send them in tex
 
 **Question:** Threads in your application, when is it a good idea? When is it bad?
 
-**Answer:**
-
-There is no need to use thread in the workers, any worker gets only one message, so if we want the messages to being care of more fast we need to open more workers.
+**Answer:** There is no need to use thread in the workers, any worker gets only one message, so if we want the messages to being care of more fast we need to open more workers.
 Thread in the workers will give us nothing because all the action must occur in a certain order.
 It's also a bad idea to use threads in localapp, because it can cause us problems with the download of the input files due to cpu stealing time , and the running time won't improve , and maybe even will get worse.
 
