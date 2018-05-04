@@ -1,13 +1,13 @@
 package com.company;
 import static java.lang.Thread.sleep;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.jms.JMSException;
 
+import com.amazonaws.services.medialive.model.Input;
 import org.apache.commons.codec.binary.Base64;
 
 
@@ -108,6 +108,7 @@ public class LocalApplication {
                 List<Instance> instancesList = res.getInstances();
                 for (Instance instance : instancesList) {
                     if (instance.getState().getName().equals("running"))
+                        System.out.println("Manager is already Defined");
                         return true;
                 }
             }
@@ -199,10 +200,12 @@ public class LocalApplication {
     }
 
     private static void downloadResponse() {
-        S3Object object = s3.getObject(new GetObjectRequest(bucketName, key));
-        System.out.println("Downloaded response, Content-Type is: "  + object.getObjectMetadata().getContentType());
-        S3ObjectInputStream objectData = object.getObjectContent();
-        createOutputFile(objectData);
+       com.amazonaws.services.s3.model.S3Object s3obj = s3.getObject(new GetObjectRequest(bucketName, key));
+        System.out.println("Downloaded response, Content-Type is: "  + s3obj.getObjectMetadata().getContentType());
+        S3ObjectInputStream objectData = s3obj.getObjectContent();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(s3obj.getObjectContent()));
+
+        createOutputFile(reader);
         try {
             objectData.close();
         } catch (IOException e) {
@@ -210,10 +213,46 @@ public class LocalApplication {
         }
     }
 
-    private static void createOutputFile(S3ObjectInputStream objectContent) {
+    private static void createOutputFile(BufferedReader reader) {
     //inputStream or S3ObjectInputStream
-        //TODO: build html file containing the pics
-        System.out.println("OUTPUT FLIE SHOULD BE HERE");
+        //TODO: build html file containing the pics and their text
+        System.out.println("OUTPUT FLIE SHOULD BE CREATED HERE");
+        try {
+            boolean isURL=true;
+            PrintWriter writer = new PrintWriter("output.html", "UTF-8");
+            writer.write("<!DOCTYPE html>\n" +
+                    "<html>\n"+
+            "<body>\n");
+            /*String line= reader.readLine();
+            int i=0;
+            while (i<100) {
+                if(line!=null)
+                writer.write(line+"\n");
+                line= reader.readLine();
+                i++;
+            }*/
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.println("TEXT LINE: " + line);
+                if (isURL) {
+                    writer.write("<img src=\"" + line + "\"> alt=\"" + line + "\">\n");
+                    isURL = false;
+                } else if (line.equals("-----------------------------------------------------------------")) {
+                    writer.write("\n");
+                    isURL = true;
+                } else { //should be text from image lines
+                    System.out.println("ELSE LINE" + line);
+                    writer.write(line);
+                }
+            }
+
+            writer.write("</body>\n" +
+                    "</html>");
+            writer.close();
+                System.out.println("Creation of HTML file was completed");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private static void close() {
