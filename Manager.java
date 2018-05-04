@@ -15,6 +15,7 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
+import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.*;
@@ -30,7 +31,7 @@ import org.apache.commons.codec.binary.Base64;
 
 import javax.jms.JMSException;
 
-public class Manager {
+public class Manager  {
 	private static AmazonS3 s3;
     private static AWSCredentialsProvider credentialsProvider;
     private static AmazonEC2 ec2;
@@ -63,7 +64,6 @@ public class Manager {
         downloadImageList();
         //TO TEST:
         //Finished creating workers and sending messages to queue
-        List<Message> messages=null;
         while(numberOfResponses<numberOfURLS){
             waitForResponses();
             waitSomeTime();
@@ -82,11 +82,13 @@ public class Manager {
         //EC2 PUTTY RUN:
         /* credentialsProvider = new AWSStaticCredentialsProvider
                (new InstanceProfileCredentialsProvider(false).getCredentials());
-        */
+*/
 
         //Local run:
+
         credentialsProvider = new AWSStaticCredentialsProvider(
                 new EnvironmentVariableCredentialsProvider().getCredentials());
+
         //START S3
         s3 = AmazonS3ClientBuilder.standard()
                 .withCredentials(credentialsProvider)
@@ -164,6 +166,9 @@ public class Manager {
         System.out.println("Input file name: " +parsedArgs[4]);
         numOfImagesPerWorker=Integer.parseInt(parsedArgs[3]);
         key=parsedArgs[4];
+        String reciptHandle= msg.getReceiptHandle();
+        sqs.deleteMessage(new DeleteMessageRequest(LocalToManagerQueue , reciptHandle));
+
     }
 
     private static void downloadImageList() {
@@ -186,6 +191,7 @@ public class Manager {
                 }
             }
 			System.out.println("downloaded of image list was completed");
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -249,8 +255,20 @@ public class Manager {
             PrintWriter writer = new PrintWriter("summary.txt", "UTF-8");
             for(String response: allResponses){
                 singleOCR=parseMessage(response);
-                writer.println(singleOCR);
-                writer.println("-----------------------------------------------------------------");
+                System.out.println("-----------------------------");
+                System.out.println("-----------------------------");
+                System.out.println("-----------------------------");
+                System.out.println("-----------------------------");
+                System.out.println("-----------------------------");
+                System.out.println("WRITER WRITE TIHS");
+                System.out.println(singleOCR);
+                System.out.println("-----------------------------");
+                System.out.println("-----------------------------");
+                System.out.println("-----------------------------");
+                System.out.println("-----------------------------");
+                System.out.println("-----------------------------");
+                writer.write(singleOCR);
+                writer.write("-----------------------------------------------------------------\n");
             }
             System.out.println("Summary flie was created!");
             writer.close();
@@ -261,14 +279,29 @@ public class Manager {
     }
 
     private static String parseMessage(String response) {
-        //String body= m.getBody();
-        String text = response.substring(response.indexOf('|')+1);
-        System.out.println("Messge recivied from worker is: " + text);
-        return text;
+        String url = "";
+        String text="";
+        response=response.substring(response.indexOf("|")+1);
+        boolean isUrl=true;
+        char ch;
+        for(int i=0;i<response.length();i++) {
+            ch=response.charAt(i);
+            if(!isUrl)
+                text+= ch;
+            else if(ch!='|')
+                url+=response.charAt(i);
+            else {
+                isUrl = false;
+            }
+        }
+        System.out.println("Messge recivied from worker is: URL " + url);
+        System.out.println("TEXT:" + text);
+        return url +"\n" +text;
     }
 
     private static void uploadFiletoS3(String filename) {
         File summaryFile= new File(filename);
+        //KELET NAME SHUOLD BE THE USMMARY NAME
         System.out.println("Manager is uploading the summary file to S3...");
         key = summaryFile.getName().replace('\\', '_').replace('/','_').replace(':', '_');
         PutObjectRequest req = new PutObjectRequest(bucketName, key, summaryFile);
@@ -307,20 +340,6 @@ public class Manager {
        else
         System.out.println("NO RESPONSE");
         //return messages;
-    }
-    /*
-        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(Worker2Manager);
-        List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
-        while (messages.size() < numberOfURLS) {
-            waitSomeTime();
-            messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
-        }
-        return messages;
-
-    }
-*/
-    private static void insertPicContentToList(String picContent) {
-
     }
 
     private static void waitSomeTime() {
