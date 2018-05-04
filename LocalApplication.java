@@ -66,7 +66,7 @@ public class LocalApplication {
         uploadFileToS3(imagesURL);
         sendMsgToManager(numOfImagesPerWorker);
         //FOR DEBUGGING ONLY,DELETE AFTER
-        downloadResponse();
+        //downloadResponse();
         //
         while(!gotResponse()){
             waitSomeTime();
@@ -99,8 +99,12 @@ public class LocalApplication {
         instanceP=new IamInstanceProfileSpecification();
         instanceP.setArn("arn:aws:iam::644923746621:instance-profile/ManagerRole");
 
-        if(!isManagerActive())
+        if(!isManagerActive()) {
+            System.out.println("Define Manager...");
             defineManager();
+        }
+        else
+            System.out.println("Manager is active already.");
     }
 
     private static boolean isManagerActive() {
@@ -110,9 +114,10 @@ public class LocalApplication {
             for (Reservation res : reservationList) {
                 List<Instance> instancesList = res.getInstances();
                 for (Instance instance : instancesList) {
-                    if (instance.getState().getName().equals("running"))
+                    if (instance.getState().getName().equals("running")) {
                         System.out.println("Manager is already Defined");
-                    return true;
+                        return true;
+                    }
                 }
             }
         }
@@ -150,7 +155,7 @@ public class LocalApplication {
         managerBuild.append("2\n");
         managerBuild.append("aws s3 cp s3://talstas/manager.zip  manager.zip\n");
         managerBuild.append("unzip manager.zip\n");
-        managerBuild.append("java -jar manager.jar");
+        managerBuild.append("java -jar manager.jar\n");
 
         return new String(Base64.encodeBase64(managerBuild.toString().getBytes()));
 
@@ -204,6 +209,8 @@ public class LocalApplication {
 
     private static void downloadResponse() {
         com.amazonaws.services.s3.model.S3Object s3obj = s3.getObject(new GetObjectRequest(bucketName, "summary."+key));
+     //   com.amazonaws.services.s3.model.S3Object s3obj = s3.getObject(new GetObjectRequest(bucketName, key));
+
         System.out.println("Downloaded response, Content-Type is: "  + s3obj.getObjectMetadata().getContentType());
         S3ObjectInputStream objectData = s3obj.getObjectContent();
         BufferedReader reader = new BufferedReader(new InputStreamReader(s3obj.getObjectContent()));
