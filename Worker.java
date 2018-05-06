@@ -13,6 +13,7 @@ import com.amazon.sqs.javamessaging.SQSConnectionFactory;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
+import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.*;
@@ -32,37 +33,26 @@ public class Worker {
 
 	public static void main(String [] args) {
 		setupWorker();
-		while(!gotTask()){
+		while(true){
+			if(gotTask()) {
+				handleTask();
+				sendMsgToManager();
+			}
 			waitSomeTime();
 		}
-		handleTask();
-		sendMsgToManager();
-		removeImageFromQueue();
+		
 	}
 	private static void setupWorker() {
         System.out.println("Welcome to worker ");
-        //EC2 PUTTY RUN:
-        /* credentialsProvider = new AWSStaticCredentialsProvider
-               (new InstanceProfileCredentialsProvider(false).getCredentials());
-        */
-
-        //Local run:
-        credentialsProvider = new AWSStaticCredentialsProvider(
-                new EnvironmentVariableCredentialsProvider().getCredentials());//EC2 PUTTY RUN:
-        /* credentialsProvider = new AWSStaticCredentialsProvider
-               (new InstanceProfileCredentialsProvider(false).getCredentials());
-        */
-
-        //Local run:
-        credentialsProvider = new AWSStaticCredentialsProvider(
-                new EnvironmentVariableCredentialsProvider().getCredentials());//EC2 PUTTY RUN:
-        /* credentialsProvider = new AWSStaticCredentialsProvider
-               (new InstanceProfileCredentialsProvider(false).getCredentials());
-        */
+        /*EC2 PUTTY RUN:
+         credentialsProvider = new AWSStaticCredentialsProvider
+               (new InstanceProfileCredentialsProvider(false).getCredentials());*/
+        
 
         //Local run:
         credentialsProvider = new AWSStaticCredentialsProvider(
                 new EnvironmentVariableCredentialsProvider().getCredentials());
+
         sqs = AmazonSQSClientBuilder.standard()
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
@@ -102,6 +92,7 @@ public class Worker {
         imageURL = body.substring(body.indexOf('|')+1);
         System.out.println("Requsted URL:" +imageURL);
         reciptHandleOfMsg=message.getReceiptHandle();
+        removeImageFromQueue();
     }
 
     private static void waitSomeTime() {
