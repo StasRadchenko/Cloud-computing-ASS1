@@ -44,14 +44,14 @@ public class Worker {
 	}
 	private static void setupWorker() {
         System.out.println("Welcome to worker ");
-        /*EC2 PUTTY RUN:
+        //EC2 PUTTY RUN:
          credentialsProvider = new AWSStaticCredentialsProvider
-               (new InstanceProfileCredentialsProvider(false).getCredentials());*/
+               (new InstanceProfileCredentialsProvider(false).getCredentials());
         
 
         //Local run:
-        credentialsProvider = new AWSStaticCredentialsProvider(
-                new EnvironmentVariableCredentialsProvider().getCredentials());
+       /* credentialsProvider = new AWSStaticCredentialsProvider(
+                new EnvironmentVariableCredentialsProvider().getCredentials());*/
 
         sqs = AmazonSQSClientBuilder.standard()
                 .withCredentials(credentialsProvider)
@@ -124,7 +124,8 @@ public class Worker {
 
     private static void sendMsgToManager() {
         System.out.println("URL OF QUEUE IN Worker class: " + Worker2Manager);
-        sqs.sendMessage(new SendMessageRequest(Worker2Manager,"done image task" + "|" + textOfImage));
+        System.out.println(imageURL);
+        sqs.sendMessage(new SendMessageRequest(Worker2Manager,"done image task" +"|" +imageURL+"|"+textOfImage));
         System.out.println("Messege was sent from worker into the queue");
     }
 

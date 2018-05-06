@@ -38,6 +38,7 @@ import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
+import com.amazonaws.services.sqs.model.DeleteMessageRequest;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
@@ -67,7 +68,7 @@ public class LocalApplication {
 		// FOR DEBUGGING ONLY,DELETE AFTER
 		// downloadResponse();
 		//
-		while (!gotResponse()) {
+		while (!(gotResponse())) {
 			waitSomeTime();
 		}
 		System.out.println("After loop");
@@ -174,8 +175,10 @@ public class LocalApplication {
 		waitSomeTime();
 		for (Message message : messages) {
 			System.out.println("not empty");
-			if (message.getBody().equals("done task")) {
+			if (message.getBody().equals("done task "+"summary+"+key)) {
 				System.out.println("GOT RESPONSE!");
+				String reciptHandleOfMsg=message.getReceiptHandle();
+				sqs.deleteMessage(new DeleteMessageRequest(ManagerToLocalQueue, reciptHandleOfMsg));
 				return true;
 			}
 		}
@@ -284,5 +287,12 @@ public class LocalApplication {
 		}
 
 	}
+	//HELPER FUNCTIONS-----------------------------------------------------------------------------
+	//private static String parseMessage(String response) {
+		//String fName;
+		//response = response.substring(response.indexOf("|") + 1);
+		//return response;
+		
+	//}
 
 }

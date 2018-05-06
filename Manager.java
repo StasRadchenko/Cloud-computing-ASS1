@@ -22,7 +22,6 @@ import com.amazonaws.services.ec2.model.*;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.sqs.AmazonSQS;
@@ -94,7 +93,7 @@ public class Manager {
 		 // Local run:
 		 
 		  credentialsProvider = new AWSStaticCredentialsProvider( new
-		  EnvironmentVariableCredentialsProvider().getCredentials());
+		  EnvironmentVariableCredentialsProvider().getCredentials());//
 		 
 
 		// START S3
@@ -231,7 +230,7 @@ public class Manager {
 	}
 
 	private static void kilWorkers() {
-		deleteTheQueues();
+		//deleteTheQueues();
 		closeInstances();
 	}
 
@@ -243,21 +242,9 @@ public class Manager {
 		try {
 			String singleOCR;
 			filename = "summary+" + key;
-			PrintWriter writer = new PrintWriter("summary.txt", "UTF-8");
+			PrintWriter writer = new PrintWriter(filename, "UTF-8");
 			for (String response : allResponses) {
 				singleOCR = parseMessage(response);
-				System.out.println("-----------------------------");
-				System.out.println("-----------------------------");
-				System.out.println("-----------------------------");
-				System.out.println("-----------------------------");
-				System.out.println("-----------------------------");
-				System.out.println("WRITER WRITE TIHS");
-				System.out.println(singleOCR);
-				System.out.println("-----------------------------");
-				System.out.println("-----------------------------");
-				System.out.println("-----------------------------");
-				System.out.println("-----------------------------");
-				System.out.println("-----------------------------");
 				writer.write(singleOCR);
 				writer.write("-----------------------------------------------------------------\n");
 			}
@@ -273,6 +260,7 @@ public class Manager {
 		String url = "";
 		String text = "";
 		response = response.substring(response.indexOf("|") + 1);
+		System.out.println(response);
 		boolean isUrl = true;
 		char ch;
 		for (int i = 0; i < response.length(); i++) {
@@ -291,30 +279,17 @@ public class Manager {
 	}
 
 	private static void uploadFiletoS3(String filename) {
-		System.out.println("DEBUG1");
 		File summaryFile = new File(filename);
-		System.out.println("DEBUG2");
 		// KELET NAME SHUOLD BE THE USMMARY NAME
 		System.out.println("Manager is uploading the summary file to S3...");
-		System.out.println("DEBUG3");
 		key = summaryFile.getName().replace('\\', '_').replace('/', '_').replace(':', '_');
-		System.out.println("DEBUG4");
-		InputStream is = null;
-		try {
-			is = new FileInputStream(summaryFile);
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		PutObjectRequest req = new PutObjectRequest(bucketName, key, is ,new ObjectMetadata());
-		System.out.println("DEBUG5");
+		PutObjectRequest req = new PutObjectRequest(bucketName, key, summaryFile);
 		s3.putObject(req);
-		System.out.println("DEBUG6");
 	}
 
 	private static void sendMessageToLocalApp() {
 		System.out.println("URL OF QUEUE IN MANAGER CLASS: " + ManagerToLocalQueue);
-		sqs.sendMessage(new SendMessageRequest(ManagerToLocalQueue, "done task"));
+		sqs.sendMessage(new SendMessageRequest(ManagerToLocalQueue, "done task "+ filename));
 		System.out.println("Messege was sent from manager into the queue");
 	}
 
@@ -325,8 +300,7 @@ public class Manager {
 		System.exit(0);
 	}
 
-	// -----------------------HELPER
-	// FUNCTIONS------------------------------------------------------
+	// -----------------------HELPER FUNCTIONS------------------------------------------------------
 	private static void waitForResponses() {
 		ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(Worker2Manager);
 		List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
@@ -390,6 +364,5 @@ public class Manager {
 
 	}
 
-	// -----------------------HELPER FUNCTIONS
-	// END-----------------------------------------------------
+	// -----------------------HELPER FUNCTIONS END-----------------------------------------------------
 }
