@@ -101,7 +101,7 @@ public class LocalApplication {
 			for (Reservation res : reservationList) {
 				List<Instance> instancesList = res.getInstances();
 				for (Instance instance : instancesList) {
-					if (instance.getState().getName().equals("running")) {
+					if (!instance.getState().getName().equals("terminated")) {
 						System.out.println("Manager is already Defined");
 						return true;
 					}
@@ -219,7 +219,7 @@ public class LocalApplication {
 		System.out.println("OUTPUT FLIE SHOULD BE CREATED HERE");
 		try {
 			boolean isURL = true;
-			PrintWriter writer = new PrintWriter("output.html", "UTF-8");
+			PrintWriter writer = new PrintWriter("output"+key+".html", "UTF-8");
 			writer.write("<!DOCTYPE html>\n" + "<html>\n" + "<body>\n");
 			String line;
 			while ((line = reader.readLine()) != null) {

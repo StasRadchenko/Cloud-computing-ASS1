@@ -125,7 +125,7 @@ public class Worker {
     private static void sendMsgToManager() {
         System.out.println("URL OF QUEUE IN Worker class: " + Worker2Manager);
         System.out.println(imageURL);
-        sqs.sendMessage(new SendMessageRequest(Worker2Manager,"done image task" +"|" +imageURL+"|"+textOfImage));
+        sqs.sendMessage(new SendMessageRequest(Worker2Manager,"done image task" +"|" +imageURL+"|"+textOfImage + "\n"));
         System.out.println("Messege was sent from worker into the queue");
     }
 

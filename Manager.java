@@ -61,17 +61,27 @@ public class Manager {
 				// Got a message from local app
 				// Download the list of the images
 				downloadImageList();
+				  filename = "summary+" + key;
+			        try {
+						PrintWriter writer = new PrintWriter(filename, "UTF-8");
 				while (numberOfResponses < numberOfURLS) {
-					waitForResponses();
+					waitForResponses(writer);
 					waitSomeTime();
 					System.out.println("URLS: " + numberOfURLS + " Response: " + numberOfResponses);
 				}
+				System.out.println("Summary flie was created!");
+	            writer.close();
+			}catch (FileNotFoundException | UnsupportedEncodingException e) {
+	            e.printStackTrace();
+	        }
+			        
 				kilWorkers();
-				createSummaryFile();
+				//createSummaryFile();
 				uploadFiletoS3(filename);
 				sendMessageToLocalApp();
 				numberOfResponses = 0;
 				numberOfURLS = 0;
+				allInstances = new ArrayList<>();
 				
 			}
 			waitSomeTime();
@@ -85,15 +95,15 @@ public class Manager {
 	private static void setup() {
 		System.out.println("WELCOME to setup");
 
-		/* EC2 PUTTY RUN:
+		// EC2 PUTTY RUN:
 		credentialsProvider = new AWSStaticCredentialsProvider(
-				new InstanceProfileCredentialsProvider(false).getCredentials());*/
+				new InstanceProfileCredentialsProvider(false).getCredentials());//
 
 		
-		 // Local run:
+		 /* Local run:
 		 
 		  credentialsProvider = new AWSStaticCredentialsProvider( new
-		  EnvironmentVariableCredentialsProvider().getCredentials());//
+		  EnvironmentVariableCredentialsProvider().getCredentials());*/
 		 
 
 		// START S3
@@ -301,20 +311,26 @@ public class Manager {
 	}
 
 	// -----------------------HELPER FUNCTIONS------------------------------------------------------
-	private static void waitForResponses() {
+	private static void waitForResponses(PrintWriter writer) {
 		ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(Worker2Manager);
 		List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
+		String singleOCR,response;
 		if (messages.size() > 0) {
 			for (int i = 0; i < messages.size(); i++) {
 				System.out.println("not empty");
 				if (messages.get(i).getBody().startsWith("done image task")) {
 					System.out.println("GOT RESPONSE!");
-					allResponses.add(messages.get(i).getBody());
+					//allResponses.add(messages.get(i).getBody());
+					response=messages.get(i).getBody();
+					singleOCR = parseMessage(response);
+	                writer.write(singleOCR);
+	                writer.write("-----------------------------------------------------------------\n");
 					String reciptHandleOfMsg = messages.get(i).getReceiptHandle();
 					sqs.deleteMessage(new DeleteMessageRequest(Worker2Manager, reciptHandleOfMsg));
 					numberOfResponses++; // maybe can cancel cas of worker2manager.isEmpty at the while in main
 				}
 			}
+	    
 		} else
 			System.out.println("NO RESPONSE");
 		// return messages;
