@@ -307,11 +307,11 @@ public class Manager {
                    else{
                        //need to treat the case when a msg from diffrenet file got to this summary
                        try {
-                           PrintWriter writer2 = new PrintWriter(diffrenetFilename, "UTF-8");
+                           PrintWriter writer2 = new PrintWriter(new FileOutputStream(new File(diffrenetFilename),true));
                            writer2.write(singleOCR);
                            writer2.write("-----------------------------------------------------------------\n");
 
-                       } catch (FileNotFoundException | UnsupportedEncodingException e) {
+                       } catch (FileNotFoundException e) {
                            e.printStackTrace();
                        }
                    }
