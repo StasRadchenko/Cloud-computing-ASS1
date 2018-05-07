@@ -50,7 +50,7 @@ public class Manager {
     private static int numberOfResponses = 0;
     private static String filename;
     private static String singleOCR="";
-    private static LinkedList<String> allResponses;
+    private static String diffrenetFilename;
 
     public static void main(String[] args) {
         System.out.println("WELCOME to manager");
@@ -110,8 +110,6 @@ public class Manager {
         sqs = AmazonSQSClientBuilder.standard().withCredentials(credentialsProvider).withRegion("us-east-1").build();
         connectionFactory = new SQSConnectionFactory(new ProviderConfiguration(),
                 AmazonSQSClientBuilder.standard().withRegion("us-east-1").withCredentials(credentialsProvider));
-        // ----------Responses list setup
-        allResponses = new LinkedList<String>();
         // ----------End responses list setup
         String LocalToManagerID = "LocalToManager";
         CreateQueueRequest createQueueRequest = new CreateQueueRequest(LocalToManagerID);
@@ -241,31 +239,6 @@ public class Manager {
         closeInstances();
     }
 
-/*    private static void createSummaryFile() {
-        if (allResponses == null) {
-            System.out.println("No URL to create summary file");
-            return;
-        }
-        try {
-            filename = "summary+" + key;
-            PrintWriter writer = new PrintWriter(filename, "UTF-8");
-            for (String response : allResponses) {
-                if(parseMessage(response)) {
-                    writer.write(singleOCR);
-                    writer.write("-----------------------------------------------------------------\n");
-                }
-                else{
-                    System.out.println("debug- message of diffrenet file was trying to get parsed to it;s summary file");
-                }
-            }
-            System.out.println("Summary flie was created!");
-            writer.close();
-
-        } catch (FileNotFoundException | UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-    }
-*/
     private static boolean parseMessage(String response) {
         int index = 0;
         String doneImageTask = getStringUntilDelimiter(response, index);
@@ -278,11 +251,11 @@ public class Manager {
         System.out.println("Message belongs to this file " + msgKey);
         System.out.println("Messge recivied from worker is: URL " + msgUrl);
         System.out.println("TEXT:" + msgText);
+        singleOCR = msgUrl + "\n" + msgText;
         if (msgKey.equals(key)) {
-            singleOCR = msgUrl + "\n" + msgText;
             return true;
         } else {
-            singleOCR = "";
+            diffrenetFilename = msgKey;
              return false;
             }
     }
@@ -303,7 +276,6 @@ public class Manager {
 
     private static void uploadFiletoS3(String filename) {
         File summaryFile = new File(filename);
-        // KELET NAME SHUOLD BE THE USMMARY NAME
         System.out.println("Manager is uploading the summary file to S3...");
         key = summaryFile.getName().replace('\\', '_').replace('/', '_').replace(':', '_');
         PutObjectRequest req = new PutObjectRequest(bucketName, key, summaryFile);
@@ -327,21 +299,30 @@ public class Manager {
                 System.out.println("not empty");
                 if (messages.get(i).getBody().startsWith("done image task")) {
                     System.out.println("GOT RESPONSE!");
-                    //allResponses.add(messages.get(i).getBody());
                     response=messages.get(i).getBody();
                    if(parseMessage(response)) {
                        writer.write(singleOCR);
                        writer.write("-----------------------------------------------------------------\n");
+                   }
+                   else{
+                       //need to treat the case when a msg from diffrenet file got to this summary
+                       try {
+                           PrintWriter writer2 = new PrintWriter(diffrenetFilename, "UTF-8");
+                           writer2.write(singleOCR);
+                           writer2.write("-----------------------------------------------------------------\n");
+
+                       } catch (FileNotFoundException | UnsupportedEncodingException e) {
+                           e.printStackTrace();
+                       }
+                   }
                        String reciptHandleOfMsg = messages.get(i).getReceiptHandle();
                        sqs.deleteMessage(new DeleteMessageRequest(Worker2Manager, reciptHandleOfMsg));
                        numberOfResponses++; // maybe can cancel cas of worker2manager.isEmpty at the while in main
                    }
                 }
             }
-
-        } else
+        else
             System.out.println("NO RESPONSE");
-        // return messages;
     }
 
     private static void waitSomeTime() {
