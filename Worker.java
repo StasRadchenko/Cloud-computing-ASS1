@@ -28,31 +28,31 @@ public class Worker {
     private static String Worker2Manager;
     private static String Manager2Worker;
     private static String imageURL;
+    private static String key;
     private static String reciptHandleOfMsg;
     private static String textOfImage;
+    public static void main(String [] args) {
+        setupWorker();
+        while(true){
+            if(gotTask()) {
+                handleTask();
+                sendMsgToManager();
+            }
+            waitSomeTime();
+        }
 
-	public static void main(String [] args) {
-		setupWorker();
-		while(true){
-			if(gotTask()) {
-				handleTask();
-				sendMsgToManager();
-			}
-			waitSomeTime();
-		}
-		
-	}
-	private static void setupWorker() {
+    }
+    private static void setupWorker() {
         System.out.println("Welcome to worker ");
         //EC2 PUTTY RUN:
-         credentialsProvider = new AWSStaticCredentialsProvider
-               (new InstanceProfileCredentialsProvider(false).getCredentials());
-        
+        credentialsProvider = new AWSStaticCredentialsProvider
+                (new InstanceProfileCredentialsProvider(false).getCredentials());
+
 
         //Local run:
        /* credentialsProvider = new AWSStaticCredentialsProvider(
-                new EnvironmentVariableCredentialsProvider().getCredentials());*/
-
+                new EnvironmentVariableCredentialsProvider().getCredentials());
+*/
         sqs = AmazonSQSClientBuilder.standard()
                 .withCredentials(credentialsProvider)
                 .withRegion("us-east-1")
@@ -73,7 +73,7 @@ public class Worker {
         Manager2Worker=sqs.createQueue(manQwork).getQueueUrl();
         //-------------------------------------------------------
         System.out.println("Setup complete.");
-	}
+    }
 
     private static boolean gotTask() {
         ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(Manager2Worker);
@@ -88,11 +88,33 @@ public class Worker {
     }
 
     private static void parseArgumentsFromManager(Message message) {
+        int index=0;
         String body= message.getBody();
-        imageURL = body.substring(body.indexOf('|')+1);
+        String doneImageText=getStringUntilDelimiter(body,index);
+        index+=doneImageText.length()+1;
+        key = getStringUntilDelimiter(body,index);
+        index+=key.length()+1;
+        imageURL=getStringUntilDelimiter(body,index);
+        System.out.println("key is: "+ key);
         System.out.println("Requsted URL:" +imageURL);
         reciptHandleOfMsg=message.getReceiptHandle();
         removeImageFromQueue();
+    }
+
+    private static String getStringUntilDelimiter(String body,int index) {
+        String ans = "";
+        if(index<body.length()) {
+           char ch = body.charAt(index);
+           while (ch != '|') {
+               ans += ch;
+               index++;
+               if (index < body.length())
+                   ch = body.charAt(index);
+               else
+                   break;
+           }
+       }
+        return ans;
     }
 
     private static void waitSomeTime() {
@@ -105,27 +127,27 @@ public class Worker {
     }
 
     private static void handleTask() {
-		Ocr.setUp();
-		Ocr ocr = new Ocr();
-		ocr.startEngine("eng", Ocr.SPEED_FASTEST);
-		InputStream in;
-		try {
-			URL url = new URL(imageURL);
-			in=url.openStream();
-			Files.copy(in,Paths.get("pic.jpg"),StandardCopyOption.REPLACE_EXISTING);
-			in.close();
+        Ocr.setUp();
+        Ocr ocr = new Ocr();
+        ocr.startEngine("eng", Ocr.SPEED_FASTEST);
+        InputStream in;
+        try {
+            URL url = new URL(imageURL);
+            in=url.openStream();
+            Files.copy(in,Paths.get("pic.jpg"),StandardCopyOption.REPLACE_EXISTING);
+            in.close();
             textOfImage= ocr.recognize(new File[] { new File ("pic.jpg")}, Ocr.RECOGNIZE_TYPE_ALL, Ocr.OUTPUT_FORMAT_PLAINTEXT);
-			System.out.println("Got this text: \n "+ textOfImage);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-			ocr.stopEngine();
-	}
+            System.out.println("Got this text: \n "+ textOfImage);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        ocr.stopEngine();
+    }
 
     private static void sendMsgToManager() {
         System.out.println("URL OF QUEUE IN Worker class: " + Worker2Manager);
         System.out.println(imageURL);
-        sqs.sendMessage(new SendMessageRequest(Worker2Manager,"done image task" +"|" +imageURL+"|"+textOfImage + "\n"));
+        sqs.sendMessage(new SendMessageRequest(Worker2Manager,"done image task|" +key+"|" +imageURL+"|"+textOfImage + "\n"));
         System.out.println("Messege was sent from worker into the queue");
     }
 
