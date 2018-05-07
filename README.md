@@ -66,11 +66,12 @@ In this way ,we never expose our credentials , because we never send them in tex
 
 **Question:** Did you think about scalability? Will your program work properly when 1 million clients connected at the same time? How about 2 million? 1 billion? Scalability is very important aspect of the system, is it scalable?
 
-**Answer:**  
+**Answer:** 
 
 **Question:** What about persistence? What if a node dies? What if a node stalls for a while? Have you taken care of all possible outcomes in the system? Think of more possible issues that might arise from failures. What did you do to solve it? What about broken communications? Be sure to handle all fail-cases!
 
-**Answer:** 
+**Answer:** if a worker die, another worker will take it's task and perform it- we delete the task from the ManagerToWorker queue only after it's exceuted and done. **need to add**
+
 
 
 **Question:** Threads in your application, when is it a good idea? When is it bad?
@@ -81,7 +82,7 @@ It's also a bad idea to use threads in localapp, because it can cause us problem
 
 **Question:** Did you run more than one client at the same time? Be sure they work properly, and finish properly, and your results are correct.
 
-**Answer:**
+**Answer:** yes we ran more then 1 client at the same time. they perform as expected including building the right output files with the corresponding pics.
 
 
 **Question:** Do you understand how the system works? Do a full run using pen and paper, draw the different parts and the communication that happens between them.
