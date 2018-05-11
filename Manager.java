@@ -43,14 +43,137 @@ public class Manager {
     private static String LocalToManagerQueue;
     private static String Manager2Worker;
     private static String Worker2Manager;
-    private static int numOfImagesPerWorker;
-    private static String key;
     private static String bucketName = "talstas";
-    private static int numberOfURLS = 0;
-    private static int numberOfResponses = 0;
-    private static String filename;
-    private static String singleOCR="";
-    private static String diffrenetFilename;
+    private static int numOfThreads = 0;
+    static final Object lock = new Object();
+    static final Object lock2 = new Object();
+    
+    private static class ManagerWorker implements Runnable {
+    	private static int numOfImagesPerWorker;
+        private static String key;
+        private static int numberOfURLS = 0;
+        private static int numberOfResponses = 0;
+        private static String filename;
+        private static String singleOCR="";
+        private static String diffrenetFilename;
+        
+        private static void sendMessageToLocalApp() {
+            System.out.println("URL OF QUEUE IN MANAGER CLASS: " + ManagerToLocalQueue);
+            sqs.sendMessage(new SendMessageRequest(ManagerToLocalQueue, "done task "+ filename));
+            System.out.println("Messege was sent from manager into the queue");
+        }
+        private static boolean parseMessage(String response) {
+            int index = 0;
+            String doneImageTask = getStringUntilDelimiter(response, index);
+            index += doneImageTask.length()+1;
+            String msgKey = getStringUntilDelimiter(response, index);
+            index += msgKey.length()+1;
+            String msgUrl = getStringUntilDelimiter(response, index);
+            index += msgUrl.length()+1;
+            String msgText = getStringUntilDelimiter(response, index);
+            System.out.println("Message belongs to this file " + msgKey);
+            System.out.println("Messge recivied from worker is: URL " + msgUrl);
+            System.out.println("TEXT:" + msgText);
+            singleOCR = msgUrl + "\n" + msgText;
+            if (msgKey.equals(key)) {
+                return true;
+            } else {
+                diffrenetFilename = msgKey;
+                 return false;
+                }
+        }
+        private static void downloadImageList() {
+            com.amazonaws.services.s3.model.S3Object s3obj = s3.getObject(new GetObjectRequest(bucketName, key));
+            System.out.println("Downloaded input file, Content-Type is: " + s3obj.getObjectMetadata().getContentType());
+            S3ObjectInputStream objectData = s3obj.getObjectContent();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(s3obj.getObjectContent()));
+            String line;
+            int weightLoadWorker = 0;
+            // Manager reads file, for each line sends to queue if the work load greater,
+            // creates new worker
+            try {
+                while ((line = reader.readLine()) != null) {
+                    if (!line.equals("")) {
+                        if (weightLoadWorker % numOfImagesPerWorker == 0) {
+                            startWorkers();
+                        }
+                        sqs.sendMessage(new SendMessageRequest(Manager2Worker, "new image task|" +key+"|"+ line+"|"));
+                        weightLoadWorker++;
+                        numberOfURLS++;
+                    }
+                }
+                System.out.println("downloaded of image list was completed");
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }
+        private static void managerFunctionality() {
+            // Got a message from local app
+            // Download the list of the images
+            downloadImageList();
+            filename = "summary+" + key;
+            try {
+                PrintWriter writer = new PrintWriter(filename, "UTF-8");
+                while (numberOfResponses < numberOfURLS) {
+                    waitForResponses(writer);
+                    waitSomeTime();
+                    System.out.println("URLS: " + numberOfURLS + " Response: " + numberOfResponses);
+                }
+                System.out.println("Summary flie was created!");
+                writer.close();
+            }catch (FileNotFoundException | UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+            //kilWorkers();
+            //createSummaryFile();
+            uploadFiletoS3(filename);
+            sendMessageToLocalApp();
+    }
+        
+        private static void waitForResponses(PrintWriter writer) {
+            ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(Worker2Manager);
+            List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
+            String response;
+            if (messages.size() > 0) {
+                for (int i = 0; i < messages.size(); i++) {
+                    System.out.println("not empty");
+                    if (messages.get(i).getBody().startsWith("done image task")) {
+                        System.out.println("GOT RESPONSE!");
+                        response=messages.get(i).getBody();
+                       if(parseMessage(response)) {
+                           writer.write(singleOCR);
+                           writer.write("-----------------------------------------------------------------\n");
+                       
+                           String reciptHandleOfMsg = messages.get(i).getReceiptHandle();
+                           sqs.deleteMessage(new DeleteMessageRequest(Worker2Manager, reciptHandleOfMsg));
+                           numberOfResponses++; // maybe can cancel cas of worker2manager.isEmpty at the while in main
+                       }
+                       }
+                    }
+                }
+            else
+                System.out.println("NO RESPONSE");
+        }
+        private static void uploadFiletoS3(String filename) {
+            File summaryFile = new File(filename);
+            System.out.println("Manager is uploading the summary file to S3...");
+            key = summaryFile.getName().replace('\\', '_').replace('/', '_').replace(':', '_');
+            PutObjectRequest req = new PutObjectRequest(bucketName, key, summaryFile);
+            s3.putObject(req);
+        }
+        public void run() {
+        	incThreads();
+            managerFunctionality();
+            //Thread.currentThread().stop(); // either this
+            decThreads();
+            Thread.currentThread().interrupt();// either this
+            while(!Thread.currentThread().isInterrupted()){
+                waitSomeTime();
+            }
+        }
+    }
 
     public static void main(String[] args) {
         System.out.println("WELCOME to manager");
@@ -58,33 +181,13 @@ public class Manager {
         setup();
         // LIsten for local app to send a message
         while(true) {
-            if(gotTaskFromLocal()) {
-                // Got a message from local app
-                // Download the list of the images
-                downloadImageList();
-                filename = "summary+" + key;
-                try {
-                    PrintWriter writer = new PrintWriter(filename, "UTF-8");
-                    while (numberOfResponses < numberOfURLS) {
-                        waitForResponses(writer);
-                        waitSomeTime();
-                        System.out.println("URLS: " + numberOfURLS + " Response: " + numberOfResponses);
-                    }
-                    System.out.println("Summary flie was created!");
-                    writer.close();
-                }catch (FileNotFoundException | UnsupportedEncodingException e) {
-                    e.printStackTrace();
-                }
-                kilWorkers();
-                //createSummaryFile();
-                uploadFiletoS3(filename);
-                sendMessageToLocalApp();
-                numberOfResponses = 0;
-                numberOfURLS = 0;
-                allInstances = new ArrayList<>();
 
-            }
+        	gotTaskFromLocal();
             waitSomeTime();
+            if(numOfThreads == 0 && allInstances.size()>0) {
+            	kilWorkers();
+            }
+            	
         }
         //closeManager();
     }
@@ -97,11 +200,11 @@ public class Manager {
                 new InstanceProfileCredentialsProvider(false).getCredentials());//
 
 
-		  //Local run:
-/*
+		  /*Local run:
+
 		  credentialsProvider = new AWSStaticCredentialsProvider( new
-		  EnvironmentVariableCredentialsProvider().getCredentials());
-*/
+		  EnvironmentVariableCredentialsProvider().getCredentials());*/
+
 
         // START S3
         s3 = AmazonS3ClientBuilder.standard().withCredentials(credentialsProvider).withRegion("us-east-1").build();
@@ -135,19 +238,24 @@ public class Manager {
         allInstances = new ArrayList<>();
     }
 
-    private static boolean gotTaskFromLocal() {
+
+    private static void gotTaskFromLocal() {
         ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(LocalToManagerQueue);
         List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
-        for (Message message : messages) {
-            System.out.println("GOT MSG FROM LOCAL TO MNG");
-            parseArgumentsFromLocal(message);
-            return true;
+        if(messages.size()>0) {
+	        for (Message message : messages) {
+	            System.out.println("GOT MSG FROM LOCAL TO MNG");
+	            ManagerWorker temp = new ManagerWorker();
+	            parseArgumentsFromLocal(message,temp);
+	            new Thread(temp).start();
+	            String reciptHandle = message.getReceiptHandle();
+	            sqs.deleteMessage(new DeleteMessageRequest(LocalToManagerQueue, reciptHandle));
+	        }
         }
-        System.out.println("DIDNT GOT MSG FROM LOCAL TO MNG");
-        return false;
+        
     }
 
-    private static void parseArgumentsFromLocal(Message msg) {
+    private static void parseArgumentsFromLocal(Message msg, ManagerWorker th) {
         String[] allArgs = msg.toString().split(":");
         String[] args = allArgs[4].split("|");
         String parsedMsg = "";
@@ -163,40 +271,10 @@ public class Manager {
 
         String[] parsedArgs = parsedMsg.split(" ");
         System.out.println("Input file name: " + parsedArgs[4]);
-        numOfImagesPerWorker = Integer.parseInt(parsedArgs[3]);
-        key = parsedArgs[4];
-        String reciptHandle = msg.getReceiptHandle();
-        sqs.deleteMessage(new DeleteMessageRequest(LocalToManagerQueue, reciptHandle));
-
+        th.numOfImagesPerWorker = Integer.parseInt(parsedArgs[3]);
+        th.key = parsedArgs[4];
     }
 
-    private static void downloadImageList() {
-        com.amazonaws.services.s3.model.S3Object s3obj = s3.getObject(new GetObjectRequest(bucketName, key));
-        System.out.println("Downloaded input file, Content-Type is: " + s3obj.getObjectMetadata().getContentType());
-        S3ObjectInputStream objectData = s3obj.getObjectContent();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(s3obj.getObjectContent()));
-        String line;
-        int weightLoadWorker = 0;
-        // Manager reads file, for each line sends to queue if the work load greater,
-        // creates new worker
-        try {
-            while ((line = reader.readLine()) != null) {
-                if (!line.equals("")) {
-                    if (weightLoadWorker % numOfImagesPerWorker == 0) {
-                        startWorkers();
-                    }
-                    sqs.sendMessage(new SendMessageRequest(Manager2Worker, "new image task|" +key+"|"+ line+"|"));
-                    weightLoadWorker++;
-                    numberOfURLS++;
-                }
-            }
-            System.out.println("downloaded of image list was completed");
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
 
     private static void startWorkers() {
         try {
@@ -239,26 +317,6 @@ public class Manager {
         closeInstances();
     }
 
-    private static boolean parseMessage(String response) {
-        int index = 0;
-        String doneImageTask = getStringUntilDelimiter(response, index);
-        index += doneImageTask.length()+1;
-        String msgKey = getStringUntilDelimiter(response, index);
-        index += msgKey.length()+1;
-        String msgUrl = getStringUntilDelimiter(response, index);
-        index += msgUrl.length()+1;
-        String msgText = getStringUntilDelimiter(response, index);
-        System.out.println("Message belongs to this file " + msgKey);
-        System.out.println("Messge recivied from worker is: URL " + msgUrl);
-        System.out.println("TEXT:" + msgText);
-        singleOCR = msgUrl + "\n" + msgText;
-        if (msgKey.equals(key)) {
-            return true;
-        } else {
-            diffrenetFilename = msgKey;
-             return false;
-            }
-    }
 
     private static String getStringUntilDelimiter(String body, int index) {
         char ch=body.charAt(index);
@@ -274,56 +332,11 @@ public class Manager {
         return ans;
     }
 
-    private static void uploadFiletoS3(String filename) {
-        File summaryFile = new File(filename);
-        System.out.println("Manager is uploading the summary file to S3...");
-        key = summaryFile.getName().replace('\\', '_').replace('/', '_').replace(':', '_');
-        PutObjectRequest req = new PutObjectRequest(bucketName, key, summaryFile);
-        s3.putObject(req);
-    }
 
-    private static void sendMessageToLocalApp() {
-        System.out.println("URL OF QUEUE IN MANAGER CLASS: " + ManagerToLocalQueue);
-        sqs.sendMessage(new SendMessageRequest(ManagerToLocalQueue, "done task "+ filename));
-        System.out.println("Messege was sent from manager into the queue");
-    }
+    
 
 
     // -----------------------HELPER FUNCTIONS------------------------------------------------------
-    private static void waitForResponses(PrintWriter writer) {
-        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(Worker2Manager);
-        List<Message> messages = sqs.receiveMessage(receiveMessageRequest).getMessages();
-        String response;
-        if (messages.size() > 0) {
-            for (int i = 0; i < messages.size(); i++) {
-                System.out.println("not empty");
-                if (messages.get(i).getBody().startsWith("done image task")) {
-                    System.out.println("GOT RESPONSE!");
-                    response=messages.get(i).getBody();
-                   if(parseMessage(response)) {
-                       writer.write(singleOCR);
-                       writer.write("-----------------------------------------------------------------\n");
-                   }
-                   else{
-                       //need to treat the case when a msg from diffrenet file got to this summary
-                       try {
-                           PrintWriter writer2 = new PrintWriter(new FileOutputStream(new File(diffrenetFilename),true));
-                           writer2.write(singleOCR);
-                           writer2.write("-----------------------------------------------------------------\n");
-
-                       } catch (FileNotFoundException e) {
-                           e.printStackTrace();
-                       }
-                   }
-                       String reciptHandleOfMsg = messages.get(i).getReceiptHandle();
-                       sqs.deleteMessage(new DeleteMessageRequest(Worker2Manager, reciptHandleOfMsg));
-                       numberOfResponses++; // maybe can cancel cas of worker2manager.isEmpty at the while in main
-                   }
-                }
-            }
-        else
-            System.out.println("NO RESPONSE");
-    }
 
     private static void waitSomeTime() {
         try {
@@ -332,6 +345,18 @@ public class Manager {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+    
+    private static void incThreads() {
+    	synchronized (lock) {
+    		numOfThreads++;
+		}
+    }
+    
+    private static void decThreads() {
+    	synchronized (lock2) {
+    		numOfThreads--;
+		}
     }
 
     private static void closeInstances() {
