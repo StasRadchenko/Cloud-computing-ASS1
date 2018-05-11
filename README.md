@@ -66,11 +66,15 @@ In this way ,we never expose our credentials , because we never send them in tex
 
 **Question:** Did you think about scalability? Will your program work properly when 1 million clients connected at the same time? How about 2 million? 1 billion? Scalability is very important aspect of the system, is it scalable?
 
-**Answer:**  
+**Answer:** our program is partialy scalable. each of the thousands requestes will get their response , even though the  approximiate request time is depand on the speed of amazaon instances initiliazing proccess. (The type of the manager is linear - it works on each local application sepertaly).
 
 **Question:** What about persistence? What if a node dies? What if a node stalls for a while? Have you taken care of all possible outcomes in the system? Think of more possible issues that might arise from failures. What did you do to solve it? What about broken communications? Be sure to handle all fail-cases!
 
-**Answer:** 
+**Answer:** if a worker die, another worker will take it's task and perform it- we delete the task from the ManagerToWorker queue only after it's exceuted and done. if a worker node is stalling, we have 2 cases for this scenrio:
+1) he has a url he is taking care of then the manager will wait until the stall is over.
+2)else,all the other workers will keep working untiil the job is done.
+if a manager node stall, the local app will still wait for it's answer untill the stall is over.
+if a managaer die, in the next run of a local applicatoin  it will define a new manager which will get the same tasks from the exisiting queues and will continue to manage them instead of the terminated manager.
 
 
 **Question:** Threads in your application, when is it a good idea? When is it bad?
@@ -78,10 +82,12 @@ In this way ,we never expose our credentials , because we never send them in tex
 **Answer:** There is no need to use thread in the workers, any worker gets only one message, so if we want the messages to being care of more fast we need to open more workers.
 Thread in the workers will give us nothing because all the action must occur in a certain order.
 It's also a bad idea to use threads in localapp, because it can cause us problems with the download of the input files due to cpu stealing time , and the running time won't improve , and maybe even will get worse.
+for the manager - it is a good idea to use several threads, we didnt had enough time implementing it - we had a bug before subbmission for the multi threaded solution - so we submitted a snigle threaded solution.
+
 
 **Question:** Did you run more than one client at the same time? Be sure they work properly, and finish properly, and your results are correct.
 
-**Answer:**
+**Answer:** yes we ran more then 1 client at the same time. they perform as expected including building the right output files with the corresponding pics.
 
 
 **Question:** Do you understand how the system works? Do a full run using pen and paper, draw the different parts and the communication that happens between them.
