@@ -65,15 +65,12 @@ public class LocalApplication {
 		setupProgram();
 		uploadFileToS3(imagesURL);
 		sendMsgToManager(numOfImagesPerWorker);
-		// FOR DEBUGGING ONLY,DELETE AFTER
-		// downloadResponse();
-		//
 		while (!(gotResponse())) {
 			waitSomeTime();
 		}
 		System.out.println("After loop");
 		downloadResponse();
-		//close();
+		close();
 	}
 
 	private static void setupProgram() { 
@@ -287,12 +284,5 @@ public class LocalApplication {
 		}
 
 	}
-	//HELPER FUNCTIONS-----------------------------------------------------------------------------
-	//private static String parseMessage(String response) {
-		//String fName;
-		//response = response.substring(response.indexOf("|") + 1);
-		//return response;
-		
-	//}
 
 }
