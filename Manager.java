@@ -148,7 +148,7 @@ public class Manager {
                        
                            String reciptHandleOfMsg = messages.get(i).getReceiptHandle();
                            sqs.deleteMessage(new DeleteMessageRequest(Worker2Manager, reciptHandleOfMsg));
-                           numberOfResponses++; // maybe can cancel cas of worker2manager.isEmpty at the while in main
+                           numberOfResponses++; 
                        }
                        }
                     }
@@ -166,9 +166,8 @@ public class Manager {
         public void run() {
         	incThreads();
             managerFunctionality();
-            //Thread.currentThread().stop(); // either this
             decThreads();
-            Thread.currentThread().interrupt();// either this
+            Thread.currentThread().interrupt();
             while(!Thread.currentThread().isInterrupted()){
                 waitSomeTime();
             }
@@ -177,7 +176,6 @@ public class Manager {
 
     public static void main(String[] args) {
         System.out.println("WELCOME to manager");
-        // Install manager func
         setup();
         // LIsten for local app to send a message
         while(true) {
