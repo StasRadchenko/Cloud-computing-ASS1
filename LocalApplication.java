@@ -110,8 +110,6 @@ public class LocalApplication {
 
 	private static void defineManager() {
 		try {
-			//
-			// ami-76f0061f - original
 			RunInstancesRequest request = new RunInstancesRequest("ami-1853ac65", 1, 1);
 			request.setInstanceType(InstanceType.T2Micro.toString());
 			request.setUserData(createManagerScript());
@@ -131,7 +129,7 @@ public class LocalApplication {
 
 	private static String createManagerScript() {
         StringBuilder managerBuild = new StringBuilder();
-        managerBuild.append("#!/bin/bash\n"); //start the bash
+        managerBuild.append("#!/bin/bash\n"); 
         managerBuild.append("sudo su\n");
         managerBuild.append("yum -y install java-1.8.0 \n");
         managerBuild.append("alternatives --remove java /usr/lib/jvm/jre-1.7.0-openjdk.x86_64/bin/java\n");
@@ -195,9 +193,7 @@ public class LocalApplication {
 	private static void downloadResponse() {
 		com.amazonaws.services.s3.model.S3Object s3obj = s3
 				.getObject(new GetObjectRequest(bucketName, "summary+" + key));
-		// com.amazonaws.services.s3.model.S3Object s3obj = s3.getObject(new
-		// GetObjectRequest(bucketName, key));
-
+		
 		System.out.println("Downloaded response, Content-Type is: " + s3obj.getObjectMetadata().getContentType());
 		S3ObjectInputStream objectData = s3obj.getObjectContent();
 		BufferedReader reader = new BufferedReader(new InputStreamReader(s3obj.getObjectContent()));
@@ -211,8 +207,6 @@ public class LocalApplication {
 	}
 
 	private static void createOutputFile(BufferedReader reader) {
-		// inputStream or S3ObjectInputStream
-		// TODO: build html file containing the pics and their text
 		System.out.println("OUTPUT FLIE SHOULD BE CREATED HERE");
 		try {
 			boolean isURL = true;
